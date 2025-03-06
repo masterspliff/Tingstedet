@@ -68,7 +68,7 @@
                     
                     <div class="d-flex justify-content-between">
                         <button class="btn btn-outline-secondary" @onclick="NavigateBack">Cancel</button>
-                        <button class="btn btn-primary" @onclick="CreatePost" disabled="@_isSubmitting">
+                        <button class="btn btn-primary" @onclick="SubmitPost" disabled="@_isSubmitting">
                             @if (_isSubmitting)
                             {
                                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -121,7 +121,7 @@
         NavigationManager.NavigateTo("/");
     }
     
-    private async Task CreatePost()
+    private async Task SubmitPost()
     {
         // Reset validation flags
         _titleError = string.IsNullOrWhiteSpace(_title) || _title.Length < 3;
