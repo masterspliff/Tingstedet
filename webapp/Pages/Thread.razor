@@ -1,0 +1,211 @@
+@page "/thread/{PostId:int}"
+@using webapp.Models
+@using webapp.Services
+@using webapp.Components.Post
+@inject IPostService PostService
+@inject NavigationManager NavigationManager
+
+<div class="container mt-4">
+    <div class="row">
+        <!-- Main content area -->
+        <div class="col-md-8">
+            @if (_loading)
+            {
+                <PlaceholderContainer Animation="PlaceholderAnimation.Glow">
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <Placeholder Width="PlaceholderWidth.Col8" Size="PlaceholderSize.Large" />
+                            <Placeholder Width="PlaceholderWidth.Col12" />
+                            <Placeholder Width="PlaceholderWidth.Col12" />
+                            <Placeholder Width="PlaceholderWidth.Col12" />
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <Placeholder Width="PlaceholderWidth.Col6" Size="PlaceholderSize.Small" />
+                            <Placeholder Width="PlaceholderWidth.Col12" />
+                            <Placeholder Width="PlaceholderWidth.Col10" />
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <Placeholder Width="PlaceholderWidth.Col6" Size="PlaceholderSize.Small" />
+                            <Placeholder Width="PlaceholderWidth.Col12" />
+                            <Placeholder Width="PlaceholderWidth.Col10" />
+                        </div>
+                    </div>
+                </PlaceholderContainer>
+            }
+            else
+            {
+                <!-- Back button -->
+                <div class="mb-3">
+                    <button class="btn btn-link p-0" @onclick="NavigateBack">
+                        <i class="bi bi-arrow-left"></i> Back to posts
+                    </button>
+                </div>
+                
+                <!-- Post content -->
+                <PostCard Post="_post" OnUpvote="HandleUpvote" OnDownvote="HandleDownvote" ShowFullContent="true" />
+                
+                <!-- Comment form -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h6 class="mb-3">Comment as CurrentUser</h6>
+                        <textarea class="form-control mb-3" rows="4" 
+                                  placeholder="What are your thoughts?" @bind="_newCommentText"></textarea>
+                        <div class="d-flex justify-content-end">
+                            <button class="btn btn-primary" @onclick="AddComment">Comment</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Comments section -->
+                <div class="comments-section">
+                    <div class="d-flex align-items-center mb-3">
+                        <h5 class="mb-0 me-2">Comments</h5>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                Sort By: Best
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#">Best</a></li>
+                                <li><a class="dropdown-item" href="#">Top</a></li>
+                                <li><a class="dropdown-item" href="#">New</a></li>
+                                <li><a class="dropdown-item" href="#">Controversial</a></li>
+                                <li><a class="dropdown-item" href="#">Old</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    @if (_post.CommentsList.Any())
+                    {
+                        @foreach (var comment in _post.CommentsList)
+                        {
+                            <CommentCard 
+                                Comment="comment" 
+                                OnUpvote="HandleCommentUpvote" 
+                                OnDownvote="HandleCommentDownvote"
+                                OnAddReply="HandleAddReply" />
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center py-4">
+                            <p class="text-muted">No comments yet. Be the first to comment!</p>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <strong>About Community</strong>
+                </div>
+                <div class="card-body">
+                    <p>Welcome to r/Tingstedet, a place to discuss all things related to our community.</p>
+                    <div class="d-flex justify-content-between mb-2">
+                        <div>
+                            <div><strong>12.5k</strong></div>
+                            <div>Members</div>
+                        </div>
+                        <div>
+                            <div><strong>238</strong></div>
+                            <div>Online</div>
+                        </div>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary">Create Post</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <strong>Posting Rules</strong>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">1. Be respectful in discussions</li>
+                        <li class="list-group-item">2. No hate speech or harassment</li>
+                        <li class="list-group-item">3. Provide sources for claims</li>
+                        <li class="list-group-item">4. Stay on topic</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int PostId { get; set; }
+    
+    private Post _post = new();
+    private bool _loading = true;
+    private string _newCommentText = "";
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPost();
+    }
+    
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadPost();
+    }
+    
+    private async Task LoadPost()
+    {
+        _loading = true;
+        _post = await PostService.GetPostByIdAsync(PostId);
+        _loading = false;
+    }
+    
+    private void NavigateBack()
+    {
+        NavigationManager.NavigateTo("/");
+    }
+    
+    private void HandleUpvote(Post post)
+    {
+        PostService.UpvotePost(post);
+    }
+    
+    private void HandleDownvote(Post post)
+    {
+        PostService.DownvotePost(post);
+    }
+    
+    private void HandleCommentUpvote(Comment comment)
+    {
+        PostService.UpvoteComment(comment);
+    }
+    
+    private void HandleCommentDownvote(Comment comment)
+    {
+        PostService.DownvoteComment(comment);
+    }
+    
+    private void AddComment()
+    {
+        if (!string.IsNullOrWhiteSpace(_newCommentText))
+        {
+            PostService.AddComment(_post, _newCommentText);
+            _newCommentText = "";
+        }
+    }
+    
+    private void HandleAddReply((Comment ParentComment, string ReplyText) data)
+    {
+        if (!string.IsNullOrWhiteSpace(data.ReplyText))
+        {
+            PostService.AddReply(data.ParentComment, data.ReplyText);
+        }
+    }
+}

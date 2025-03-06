@@ -1,0 +1,96 @@
+@using webapp.Models
+
+<div class="comment mb-3 @(IsReply ? "ms-4" : "")">
+    <div class="d-flex">
+        <div class="vote-buttons me-2">
+            <button class="btn btn-sm p-0 d-block" @onclick="() => OnUpvote.InvokeAsync(Comment)">
+                <i class="bi bi-arrow-up-circle-fill @(Comment.UserVote > 0 ? "text-primary" : "text-secondary")" style="font-size: 0.8rem;"></i>
+            </button>
+            <div class="text-center small">@Comment.Votes</div>
+            <button class="btn btn-sm p-0 d-block" @onclick="() => OnDownvote.InvokeAsync(Comment)">
+                <i class="bi bi-arrow-down-circle-fill @(Comment.UserVote < 0 ? "text-danger" : "text-secondary")" style="font-size: 0.8rem;"></i>
+            </button>
+        </div>
+        <div class="flex-grow-1">
+            <div class="d-flex align-items-center mb-1">
+                <small class="fw-bold me-2">@Comment.Author</small>
+                <small class="text-muted">@Comment.TimeAgo</small>
+            </div>
+            <p class="mb-1">@Comment.Content</p>
+            <div class="d-flex">
+                <button class="btn btn-sm btn-link text-decoration-none p-0 me-3" @onclick="ToggleReplyForm">
+                    <i class="bi bi-reply"></i> Reply
+                </button>
+                <button class="btn btn-sm btn-link text-decoration-none p-0">
+                    <i class="bi bi-share"></i> Share
+                </button>
+            </div>
+            
+            @if (IsReplyFormVisible)
+            {
+                <div class="mt-2 mb-3">
+                    <textarea class="form-control form-control-sm mb-2" rows="3" 
+                              placeholder="What are your thoughts?" @bind="NewReplyText"></textarea>
+                    <div class="d-flex justify-content-end">
+                        <button class="btn btn-sm btn-secondary me-2" @onclick="ToggleReplyForm">Cancel</button>
+                        <button class="btn btn-sm btn-primary" @onclick="SubmitReply">Reply</button>
+                    </div>
+                </div>
+            }
+            
+            @if (Comment.Replies.Any())
+            {
+                <div class="replies mt-2">
+                    @foreach (var reply in Comment.Replies)
+                    {
+                        <CommentCard 
+                            Comment="reply" 
+                            IsReply="true"
+                            OnUpvote="OnUpvote"
+                            OnDownvote="OnDownvote"
+                            OnAddReply="OnAddReply" />
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Comment Comment { get; set; } = new();
+    
+    [Parameter]
+    public bool IsReply { get; set; } = false;
+    
+    [Parameter]
+    public EventCallback<Comment> OnUpvote { get; set; }
+    
+    [Parameter]
+    public EventCallback<Comment> OnDownvote { get; set; }
+    
+    [Parameter]
+    public EventCallback<(Comment ParentComment, string ReplyText)> OnAddReply { get; set; }
+    
+    private bool IsReplyFormVisible { get; set; } = false;
+    private string NewReplyText { get; set; } = "";
+    
+    private void ToggleReplyForm()
+    {
+        IsReplyFormVisible = !IsReplyFormVisible;
+        if (!IsReplyFormVisible)
+        {
+            NewReplyText = "";
+        }
+    }
+    
+    private async Task SubmitReply()
+    {
+        if (!string.IsNullOrWhiteSpace(NewReplyText))
+        {
+            await OnAddReply.InvokeAsync((Comment, NewReplyText));
+            NewReplyText = "";
+            IsReplyFormVisible = false;
+        }
+    }
+}
