@@ -1,2 +1,274 @@
 ﻿@page "/"
+@using System.Threading.Tasks
+@inject IJSRuntime JSRuntime
+
+<div class="container mt-4">
+    <div class="row">
+        <!-- Main content area -->
+        <div class="col-md-8">
+            @if (!_contentLoaded)
+            {
+                <!-- Placeholder for posts while loading -->
+                <PlaceholderContainer Animation="PlaceholderAnimation.Glow">
+                    @for (int i = 0; i < 5; i++)
+                    {
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <Placeholder Width="PlaceholderWidth.Col8" Size="PlaceholderSize.Large" />
+                                <Placeholder Width="PlaceholderWidth.Col12" />
+                                <Placeholder Width="PlaceholderWidth.Col12" />
+                                <div class="d-flex mt-3">
+                                    <Placeholder Width="PlaceholderWidth.Col2" Size="PlaceholderSize.Small" />
+                                    <Placeholder Width="PlaceholderWidth.Col2" Size="PlaceholderSize.Small" Class="ms-2" />
+                                    <Placeholder Width="PlaceholderWidth.Col2" Size="PlaceholderSize.Small" Class="ms-2" />
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </PlaceholderContainer>
+            }
+            else
+            {
+                <!-- Actual content after loading -->
+                @foreach (var post in _posts)
+                {
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="vote-buttons me-3">
+                                    <button class="btn btn-sm p-0 d-block" @onclick="() => UpvotePost(post)">
+                                        <i class="bi bi-arrow-up-circle @(post.UserVote > 0 ? "text-primary" : "")"></i>
+                                    </button>
+                                    <div class="text-center">@post.Votes</div>
+                                    <button class="btn btn-sm p-0 d-block" @onclick="() => DownvotePost(post)">
+                                        <i class="bi bi-arrow-down-circle @(post.UserVote < 0 ? "text-danger" : "")"></i>
+                                    </button>
+                                </div>
+                                <div>
+                                    <small class="text-muted">Posted by u/@post.Author @post.TimeAgo</small>
+                                    <h5 class="card-title mb-0">@post.Title</h5>
+                                </div>
+                            </div>
+                            
+                            @if (!string.IsNullOrEmpty(post.ImageUrl))
+                            {
+                                <img src="@post.ImageUrl" class="img-fluid rounded mb-3" alt="Post image">
+                            }
+                            
+                            <p class="card-text">@post.Content</p>
+                            
+                            <div class="d-flex mt-2">
+                                <button class="btn btn-sm btn-link text-decoration-none">
+                                    <i class="bi bi-chat-left-text"></i> @post.Comments Comments
+                                </button>
+                                <button class="btn btn-sm btn-link text-decoration-none">
+                                    <i class="bi bi-share"></i> Share
+                                </button>
+                                <button class="btn btn-sm btn-link text-decoration-none">
+                                    <i class="bi bi-bookmark"></i> Save
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="col-md-4">
+            @if (!_contentLoaded)
+            {
+                <!-- Placeholder for sidebar -->
+                <PlaceholderContainer Animation="PlaceholderAnimation.Wave">
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <Placeholder Width="PlaceholderWidth.Col10" Size="PlaceholderSize.Large" />
+                            <Placeholder Width="PlaceholderWidth.Col12" />
+                            <Placeholder Width="PlaceholderWidth.Col12" />
+                            <Placeholder Width="PlaceholderWidth.Col8" />
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-body">
+                            <Placeholder Width="PlaceholderWidth.Col8" Size="PlaceholderSize.Large" />
+                            <Placeholder Width="PlaceholderWidth.Col12" />
+                            <Placeholder Width="PlaceholderWidth.Col10" />
+                            <Placeholder Width="PlaceholderWidth.Col6" />
+                        </div>
+                    </div>
+                </PlaceholderContainer>
+            }
+            else
+            {
+                <!-- Community info card -->
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <strong>About Community</strong>
+                    </div>
+                    <div class="card-body">
+                        <p>Welcome to r/Tingstedet, a place to discuss all things related to our community.</p>
+                        <div class="d-flex justify-content-between mb-2">
+                            <div>
+                                <div><strong>12.5k</strong></div>
+                                <div>Members</div>
+                            </div>
+                            <div>
+                                <div><strong>238</strong></div>
+                                <div>Online</div>
+                            </div>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary">Create Post</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Rules card -->
+                <div class="card">
+                    <div class="card-header">
+                        <strong>r/Tingstedet Rules</strong>
+                    </div>
+                    <div class="card-body p-0">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item">1. Be respectful to others</li>
+                            <li class="list-group-item">2. No spam or self-promotion</li>
+                            <li class="list-group-item">3. Use appropriate tags</li>
+                            <li class="list-group-item">4. Follow content guidelines</li>
+                        </ul>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool _contentLoaded = false;
+    private List<Post> _posts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Simulate loading delay
+        await Task.Delay(5000);
+        
+        // Generate mock data
+        _posts = new List<Post>
+        {
+            new Post
+            {
+                Id = 1,
+                Title = "Just moved to the neighborhood, any recommendations?",
+                Content = "Hi everyone! I just moved to the area and I'm looking for recommendations on local restaurants, parks, and community events. What are your favorite spots?",
+                Author = "NewNeighbor",
+                TimeAgo = "3 hours ago",
+                Votes = 42,
+                Comments = 15,
+                UserVote = 0
+            },
+            new Post
+            {
+                Id = 2,
+                Title = "Beautiful sunset at the local park yesterday",
+                Content = "Caught this amazing view while walking my dog. Thought I'd share with the community!",
+                Author = "NatureLover",
+                TimeAgo = "8 hours ago",
+                Votes = 128,
+                Comments = 23,
+                ImageUrl = "https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
+                UserVote = 0
+            },
+            new Post
+            {
+                Id = 3,
+                Title = "Community cleanup this weekend - volunteers needed!",
+                Content = "We're organizing a community cleanup this Saturday from 10am to 2pm. Meet at the central square. Gloves and bags will be provided. Hope to see many of you there!",
+                Author = "CommunityOrganizer",
+                TimeAgo = "1 day ago",
+                Votes = 89,
+                Comments = 42,
+                UserVote = 0
+            },
+            new Post
+            {
+                Id = 4,
+                Title = "New coffee shop opening next week",
+                Content = "Just saw that 'Bean There' is opening next Tuesday on Main Street. They're offering free coffee on opening day. Has anyone heard anything about this place?",
+                Author = "CoffeeFanatic",
+                TimeAgo = "2 days ago",
+                Votes = 65,
+                Comments = 31,
+                UserVote = 0
+            },
+            new Post
+            {
+                Id = 5,
+                Title = "Lost cat - please help!",
+                Content = "My orange tabby cat 'Whiskers' has been missing since yesterday evening. Last seen near Oak Street. He's wearing a blue collar with my contact info. Please message me if you see him!",
+                Author = "CatPerson",
+                TimeAgo = "5 hours ago",
+                Votes = 112,
+                Comments = 28,
+                ImageUrl = "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
+                UserVote = 0
+            }
+        };
+        
+        _contentLoaded = true;
+        StateHasChanged();
+    }
+
+    private void UpvotePost(Post post)
+    {
+        if (post.UserVote == 1)
+        {
+            // Remove upvote
+            post.Votes--;
+            post.UserVote = 0;
+        }
+        else
+        {
+            // Add upvote (and remove downvote if exists)
+            if (post.UserVote == -1)
+            {
+                post.Votes++;
+            }
+            post.Votes++;
+            post.UserVote = 1;
+        }
+    }
+
+    private void DownvotePost(Post post)
+    {
+        if (post.UserVote == -1)
+        {
+            // Remove downvote
+            post.Votes++;
+            post.UserVote = 0;
+        }
+        else
+        {
+            // Add downvote (and remove upvote if exists)
+            if (post.UserVote == 1)
+            {
+                post.Votes--;
+            }
+            post.Votes--;
+            post.UserVote = -1;
+        }
+    }
+
+    public class Post
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = "";
+        public string Content { get; set; } = "";
+        public string Author { get; set; } = "";
+        public string TimeAgo { get; set; } = "";
+        public int Votes { get; set; }
+        public int Comments { get; set; }
+        public string? ImageUrl { get; set; }
+        public int UserVote { get; set; } // 1 for upvote, -1 for downvote, 0 for no vote
+    }
+}
 
