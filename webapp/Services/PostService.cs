@@ -1,9 +1,7 @@
+using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
 using core.Models;
-
-
-
-// OFFLINE MODE
-
 
 namespace webapp.Services
 {
@@ -12,6 +10,14 @@ namespace webapp.Services
         Task<List<Post>> GetPostsAsync();
         Task<Post> GetPostByIdAsync(int id);
         Task<bool> LoadImageAsync(string imageUrl);
+        Task<int> UpvotePostAsync(Post post, string username);
+        Task<int> DownvotePostAsync(Post post, string username);
+        Task<int> UpvoteCommentAsync(Comment comment, string username);
+        Task<int> DownvoteCommentAsync(Comment comment, string username);
+        Task<Comment> AddCommentAsync(Post post, string commentText, string author);
+        Task<Post> CreatePostAsync(Post post);
+        
+        // Offline mode compatibility
         void UpvotePost(Post post);
         void DownvotePost(Post post);
         void UpvoteComment(Comment comment);
@@ -22,35 +28,243 @@ namespace webapp.Services
 
     public class PostService : IPostService
     {
-        private readonly List<Post> _posts;
-        private int _nextCommentId = 1;
-
-        public PostService()
+        private readonly HttpClient _httpClient;
+        private readonly List<Post> _cachedPosts;
+        private int _nextCommentId = 1000;
+        private readonly string _currentUser = "CurrentUser";
+        
+        private readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
         {
-            _posts = GenerateMockPosts();
+            PropertyNameCaseInsensitive = true
+        };
+
+        public PostService(HttpClient httpClient)
+        {
+            _httpClient = httpClient;
+            _cachedPosts = new List<Post>();
         }
 
         public async Task<List<Post>> GetPostsAsync()
         {
-            // Simulate API delay
-            // await Task.Delay(1000);
-            return _posts;
+            try
+            {
+                var posts = await _httpClient.GetFromJsonAsync<List<Post>>("/api/posts", _jsonOptions);
+                if (posts != null)
+                {
+                    _cachedPosts.Clear();
+                    _cachedPosts.AddRange(posts);
+                    return posts;
+                }
+            }
+            catch (Exception)
+            {
+                // If API call fails, return cached posts or empty list
+                if (_cachedPosts.Count == 0)
+                {
+                    return GenerateFallbackPosts();
+                }
+                return _cachedPosts;
+            }
+            
+            return new List<Post>();
         }
 
         public async Task<Post> GetPostByIdAsync(int id)
         {
-            // Simulate API delay
-            // await Task.Delay(1500);
-            return _posts.FirstOrDefault(p => p.Id == id) ?? new Post();
+            try
+            {
+                var post = await _httpClient.GetFromJsonAsync<Post>($"/api/posts/{id}", _jsonOptions);
+                return post ?? new Post();
+            }
+            catch (Exception)
+            {
+                // If API call fails, try to find in cached posts
+                var cachedPost = _cachedPosts.FirstOrDefault(p => p.Id == id);
+                if (cachedPost != null)
+                {
+                    return cachedPost;
+                }
+                
+                // If not in cache, return fallback
+                return new Post { Title = "Post not found", Author = "Unknown", TimeAgo = "unknown" };
+            }
         }
         
         public async Task<bool> LoadImageAsync(string imageUrl)
         {
-            // Simulate network delay for image loading
-            // await Task.Delay(2000);
+            if (string.IsNullOrEmpty(imageUrl))
+                return false;
+                
+            // In a real app, we would preload the image here
+            await Task.Delay(10); // Minimal delay to simulate async operation
             return true;
         }
+        
+        public async Task<Post> CreatePostAsync(Post post)
+        {
+            try
+            {
+                var postDto = new PostCreateDto
+                {
+                    Title = post.Title,
+                    Content = post.Content,
+                    Url = post.Url,
+                    Author = post.Author
+                };
+                
+                var response = await _httpClient.PostAsJsonAsync("/api/posts", postDto);
+                response.EnsureSuccessStatusCode();
+                
+                var createdPost = await response.Content.ReadFromJsonAsync<Post>(_jsonOptions);
+                if (createdPost != null)
+                {
+                    // Add to cache
+                    _cachedPosts.Add(createdPost);
+                    return createdPost;
+                }
+                
+                return post;
+            }
+            catch (Exception)
+            {
+                // Fallback for offline mode - assign a temporary ID
+                post.Id = _cachedPosts.Count > 0 ? _cachedPosts.Max(p => p.Id) + 1 : 1;
+                _cachedPosts.Add(post);
+                return post;
+            }
+        }
+        
+        public async Task<int> UpvotePostAsync(Post post, string username)
+        {
+            try
+            {
+                var voteDto = new VoteDto { Value = 1, Username = username };
+                var response = await _httpClient.PostAsJsonAsync($"/api/posts/{post.Id}/vote", voteDto);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<dynamic>(_jsonOptions);
+                    post.Votes = result.GetProperty("votes").GetInt32();
+                    post.UserVote = 1;
+                    return post.Votes;
+                }
+            }
+            catch (Exception)
+            {
+                // Fallback to client-side voting
+                UpvotePost(post);
+            }
+            
+            return post.Votes;
+        }
+        
+        public async Task<int> DownvotePostAsync(Post post, string username)
+        {
+            try
+            {
+                var voteDto = new VoteDto { Value = -1, Username = username };
+                var response = await _httpClient.PostAsJsonAsync($"/api/posts/{post.Id}/vote", voteDto);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<dynamic>(_jsonOptions);
+                    post.Votes = result.GetProperty("votes").GetInt32();
+                    post.UserVote = -1;
+                    return post.Votes;
+                }
+            }
+            catch (Exception)
+            {
+                // Fallback to client-side voting
+                DownvotePost(post);
+            }
+            
+            return post.Votes;
+        }
+        
+        public async Task<int> UpvoteCommentAsync(Comment comment, string username)
+        {
+            try
+            {
+                var voteDto = new VoteDto { Value = 1, Username = username };
+                var response = await _httpClient.PostAsJsonAsync($"/api/comments/{comment.Id}/vote", voteDto);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<dynamic>(_jsonOptions);
+                    comment.Votes = result.GetProperty("votes").GetInt32();
+                    comment.UserVote = 1;
+                    return comment.Votes;
+                }
+            }
+            catch (Exception)
+            {
+                // Fallback to client-side voting
+                UpvoteComment(comment);
+            }
+            
+            return comment.Votes;
+        }
+        
+        public async Task<int> DownvoteCommentAsync(Comment comment, string username)
+        {
+            try
+            {
+                var voteDto = new VoteDto { Value = -1, Username = username };
+                var response = await _httpClient.PostAsJsonAsync($"/api/comments/{comment.Id}/vote", voteDto);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<dynamic>(_jsonOptions);
+                    comment.Votes = result.GetProperty("votes").GetInt32();
+                    comment.UserVote = -1;
+                    return comment.Votes;
+                }
+            }
+            catch (Exception)
+            {
+                // Fallback to client-side voting
+                DownvoteComment(comment);
+            }
+            
+            return comment.Votes;
+        }
+        
+        public async Task<Comment> AddCommentAsync(Post post, string commentText, string author)
+        {
+            try
+            {
+                var commentDto = new CommentCreateDto
+                {
+                    Content = commentText,
+                    Author = author
+                };
+                
+                var response = await _httpClient.PostAsJsonAsync($"/api/posts/{post.Id}/comments", commentDto);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var comment = await response.Content.ReadFromJsonAsync<Comment>(_jsonOptions);
+                    if (comment != null)
+                    {
+                        post.CommentsList.Add(comment);
+                        return comment;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Fallback to client-side comment
+                AddComment(post, commentText);
+                return post.CommentsList.Last();
+            }
+            
+            // If API call failed, fallback to client-side
+            AddComment(post, commentText);
+            return post.CommentsList.Last();
+        }
 
+        // Offline mode compatibility methods
         public void UpvotePost(Post post)
         {
             if (post.UserVote == 1)
@@ -136,15 +350,15 @@ namespace webapp.Services
             var comment = new Comment
             {
                 Id = _nextCommentId++,
-                Author = "CurrentUser",
+                Author = _currentUser,
                 Content = commentText,
                 TimeAgo = "just now",
                 Votes = 1,
-                UserVote = 1
+                UserVote = 1,
+                PostId = post.Id
             };
 
             post.CommentsList.Add(comment);
-            post.Comments = post.CommentsList.Count;
         }
 
         public void AddReply(Comment parentComment, string replyText)
@@ -152,7 +366,7 @@ namespace webapp.Services
             var reply = new Comment
             {
                 Id = _nextCommentId++,
-                Author = "CurrentUser",
+                Author = _currentUser,
                 Content = replyText,
                 TimeAgo = "just now",
                 Votes = 1,
@@ -162,7 +376,7 @@ namespace webapp.Services
             parentComment.Replies.Add(reply);
         }
 
-        private List<Post> GenerateMockPosts()
+        private List<Post> GenerateFallbackPosts()
         {
             var posts = new List<Post>
             {
@@ -184,7 +398,7 @@ namespace webapp.Services
                     Author = "NatureLover",
                     TimeAgo = "8 hours ago",
                     Votes = 128,
-                    ImageUrl = "https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
+                    Url = "https://images.unsplash.com/photo-1495616811223-4d98c6e9c869",
                     UserVote = 0
                 },
                 new Post
@@ -195,27 +409,6 @@ namespace webapp.Services
                     Author = "CommunityOrganizer",
                     TimeAgo = "1 day ago",
                     Votes = 89,
-                    UserVote = 0
-                },
-                new Post
-                {
-                    Id = 4,
-                    Title = "New coffee shop opening next week",
-                    Content = "Just saw that 'Bean There' is opening next Tuesday on Main Street. They're offering free coffee on opening day. Has anyone heard anything about this place?",
-                    Author = "CoffeeFanatic",
-                    TimeAgo = "2 days ago",
-                    Votes = 65,
-                    UserVote = 0
-                },
-                new Post
-                {
-                    Id = 5,
-                    Title = "Lost cat - please help!",
-                    Content = "My orange tabby cat 'Whiskers' has been missing since yesterday evening. Last seen near Oak Street. He's wearing a blue collar with my contact info. Please message me if you see him!",
-                    Author = "CatPerson",
-                    TimeAgo = "5 hours ago",
-                    Votes = 112,
-                    ImageUrl = "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
                     UserVote = 0
                 }
             };
@@ -231,27 +424,6 @@ namespace webapp.Services
                     TimeAgo = "2 hours ago",
                     Votes = 15,
                     UserVote = 0,
-                    Replies = new List<Comment>
-                    {
-                        new Comment
-                        {
-                            Id = _nextCommentId++,
-                            Author = "NewNeighbor",
-                            Content = "Thanks for the recommendation! I'll check it out this weekend.",
-                            TimeAgo = "1 hour ago",
-                            Votes = 3,
-                            UserVote = 0
-                        },
-                        new Comment
-                        {
-                            Id = _nextCommentId++,
-                            Author = "CoffeeAddict",
-                            Content = "Their coffee is also amazing! Try the house blend.",
-                            TimeAgo = "45 minutes ago",
-                            Votes = 2,
-                            UserVote = 0
-                        }
-                    }
                 },
                 new Comment
                 {
@@ -261,58 +433,8 @@ namespace webapp.Services
                     TimeAgo = "2 hours ago",
                     Votes = 8,
                     UserVote = 0
-                },
-                new Comment
-                {
-                    Id = _nextCommentId++,
-                    Author = "EventPlanner",
-                    Content = "There's a farmers market every Saturday morning in the town square. Great place to meet locals and get fresh produce!",
-                    TimeAgo = "1 hour ago",
-                    Votes = 6,
-                    UserVote = 0
                 }
             };
-
-            // Add comments to the second post
-            posts[1].CommentsList = new List<Comment>
-            {
-                new Comment
-                {
-                    Id = _nextCommentId++,
-                    Author = "PhotoEnthusiast",
-                    Content = "Wow, that's a stunning shot! What camera did you use?",
-                    TimeAgo = "7 hours ago",
-                    Votes = 12,
-                    UserVote = 0,
-                    Replies = new List<Comment>
-                    {
-                        new Comment
-                        {
-                            Id = _nextCommentId++,
-                            Author = "NatureLover",
-                            Content = "Thanks! Just used my phone actually - Google Pixel 6.",
-                            TimeAgo = "6 hours ago",
-                            Votes = 5,
-                            UserVote = 0
-                        }
-                    }
-                },
-                new Comment
-                {
-                    Id = _nextCommentId++,
-                    Author = "SunsetChaser",
-                    Content = "I love that spot! The sunsets there are always magical.",
-                    TimeAgo = "5 hours ago",
-                    Votes = 7,
-                    UserVote = 0
-                }
-            };
-
-            // Update comment counts
-            foreach (var post in posts)
-            {
-                post.Comments = post.CommentsList.Count;
-            }
 
             return posts;
         }

@@ -1,0 +1,166 @@
+@page "/create"
+@using core.Models
+@using webapp.Services
+@inject IPostService PostService
+@inject NavigationManager NavigationManager
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Create a New Post</h4>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Title</label>
+                        <input type="text" class="form-control" id="title" @bind="@_title" required>
+                        @if (_titleError)
+                        {
+                            <div class="text-danger mt-1">Title is required (minimum 3 characters)</div>
+                        }
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="postType" id="textPost" 
+                                   value="text" checked @onchange="@(() => _isTextPost = true)">
+                            <label class="form-check-label" for="textPost">
+                                Text Post
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="postType" id="linkPost" 
+                                   value="link" @onchange="@(() => _isTextPost = false)">
+                            <label class="form-check-label" for="linkPost">
+                                Link Post
+                            </label>
+                        </div>
+                    </div>
+                    
+                    @if (_isTextPost)
+                    {
+                        <div class="mb-3">
+                            <label for="content" class="form-label">Content</label>
+                            <textarea class="form-control" id="content" rows="5" @bind="@_content"></textarea>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="mb-3">
+                            <label for="url" class="form-label">URL</label>
+                            <input type="url" class="form-control" id="url" @bind="@_url">
+                            @if (_urlError)
+                            {
+                                <div class="text-danger mt-1">Please enter a valid URL</div>
+                            }
+                        </div>
+                    }
+                    
+                    <div class="mb-3">
+                        <label for="author" class="form-label">Your Name</label>
+                        <input type="text" class="form-control" id="author" @bind="@_author" required>
+                        @if (_authorError)
+                        {
+                            <div class="text-danger mt-1">Name is required</div>
+                        }
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <button class="btn btn-outline-secondary" @onclick="NavigateBack">Cancel</button>
+                        <button class="btn btn-primary" @onclick="CreatePost" disabled="@_isSubmitting">
+                            @if (_isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                <span class="ms-1">Submitting...</span>
+                            }
+                            else
+                            {
+                                <span>Create Post</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <strong>Posting Rules</strong>
+                </div>
+                <div class="card-body">
+                    <ol class="mb-0">
+                        <li>Be respectful and considerate</li>
+                        <li>Use a clear and descriptive title</li>
+                        <li>Stay on topic</li>
+                        <li>Check for duplicate posts</li>
+                        <li>Include sufficient details</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _title = string.Empty;
+    private string _content = string.Empty;
+    private string _url = string.Empty;
+    private string _author = string.Empty;
+    private bool _isTextPost = true;
+    private bool _isSubmitting = false;
+    
+    // Validation flags
+    private bool _titleError = false;
+    private bool _urlError = false;
+    private bool _authorError = false;
+    
+    private void NavigateBack()
+    {
+        NavigationManager.NavigateTo("/");
+    }
+    
+    private async Task CreatePost()
+    {
+        // Reset validation flags
+        _titleError = string.IsNullOrWhiteSpace(_title) || _title.Length < 3;
+        _urlError = !_isTextPost && (!string.IsNullOrEmpty(_url) && !Uri.IsWellFormedUriString(_url, UriKind.Absolute));
+        _authorError = string.IsNullOrWhiteSpace(_author);
+        
+        // Validate input
+        if (_titleError || _urlError || _authorError)
+        {
+            return;
+        }
+        
+        _isSubmitting = true;
+        
+        try
+        {
+            var post = new Post
+            {
+                Title = _title,
+                Author = _author,
+                Content = _isTextPost ? _content : string.Empty,
+                Url = !_isTextPost ? _url : null,
+                TimeAgo = "just now",
+                Votes = 0,
+                UserVote = 1 // Auto-upvote your own post
+            };
+            
+            await PostService.CreatePostAsync(post);
+            
+            // Navigate to home page after successful submission
+            NavigationManager.NavigateTo("/");
+        }
+        catch (Exception)
+        {
+            // Handle errors
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}
