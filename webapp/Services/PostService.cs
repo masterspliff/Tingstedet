@@ -96,7 +96,7 @@ namespace webapp.Services
                 return false;
                 
             // In a real app, we would preload the image here
-            await Task.Delay(10); // Minimal delay to simulate async operation
+            await Task.Delay(1000); // Minimal delay to simulate async operation
             return true;
         }
         
