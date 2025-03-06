@@ -27,14 +27,14 @@ namespace webapp.Services
         public async Task<List<Post>> GetPostsAsync()
         {
             // Simulate API delay
-            await Task.Delay(5000);
+            await Task.Delay(0);
             return _posts;
         }
 
         public async Task<Post> GetPostByIdAsync(int id)
         {
             // Simulate API delay
-            await Task.Delay(1000);
+            await Task.Delay(0);
             return _posts.FirstOrDefault(p => p.Id == id) ?? new Post();
         }
 
