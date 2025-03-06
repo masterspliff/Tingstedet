@@ -1,4 +1,9 @@
-using webapp.Models;
+using core.Models;
+
+
+
+// OFFLINE MODE
+
 
 namespace webapp.Services
 {
@@ -6,6 +11,7 @@ namespace webapp.Services
     {
         Task<List<Post>> GetPostsAsync();
         Task<Post> GetPostByIdAsync(int id);
+        Task<bool> LoadImageAsync(string imageUrl);
         void UpvotePost(Post post);
         void DownvotePost(Post post);
         void UpvoteComment(Comment comment);
@@ -27,15 +33,22 @@ namespace webapp.Services
         public async Task<List<Post>> GetPostsAsync()
         {
             // Simulate API delay
-            await Task.Delay(0);
+            // await Task.Delay(1000);
             return _posts;
         }
 
         public async Task<Post> GetPostByIdAsync(int id)
         {
             // Simulate API delay
-            await Task.Delay(0);
+            // await Task.Delay(1500);
             return _posts.FirstOrDefault(p => p.Id == id) ?? new Post();
+        }
+        
+        public async Task<bool> LoadImageAsync(string imageUrl)
+        {
+            // Simulate network delay for image loading
+            // await Task.Delay(2000);
+            return true;
         }
 
         public void UpvotePost(Post post)

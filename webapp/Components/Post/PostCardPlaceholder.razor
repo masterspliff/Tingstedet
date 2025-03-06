@@ -1,12 +1,65 @@
+@using Microsoft.AspNetCore.Components
+
 <div class="card mb-3">
     <div class="card-body">
-        <Placeholder Width="PlaceholderWidth.Col8" Size="PlaceholderSize.Large" />
-        <Placeholder Width="PlaceholderWidth.Col12" />
-        <Placeholder Width="PlaceholderWidth.Col12" />
-        <div class="d-flex mt-3">
-            <Placeholder Width="PlaceholderWidth.Col2" Size="PlaceholderSize.Small" />
-            <Placeholder Width="PlaceholderWidth.Col2" Size="PlaceholderSize.Small" Class="ms-2" />
-            <Placeholder Width="PlaceholderWidth.Col2" Size="PlaceholderSize.Small" Class="ms-2" />
-        </div>
+        @if (HeaderTemplate != null)
+        {
+            @HeaderTemplate
+        }
+        else
+        {
+            <Placeholder Width="@TitleWidth" Size="PlaceholderSize.Large" />
+        }
+        
+        @if (ContentTemplate != null)
+        {
+            @ContentTemplate
+        }
+        else
+        {
+            @for (int i = 0; i < ContentLines; i++)
+            {
+                <Placeholder Width="PlaceholderWidth.Col12" Class="@(i > 0 ? "mt-1" : "")" />
+            }
+        }
+        
+        @if (ActionsTemplate != null)
+        {
+            @ActionsTemplate
+        }
+        else
+        {
+            <div class="d-flex mt-3">
+                @for (int i = 0; i < ActionButtons; i++)
+                {
+                    <Placeholder Width="PlaceholderWidth.Col2" Size="PlaceholderSize.Small" Class="@(i > 0 ? "ms-2" : "")" />
+                }
+            </div>
+        }
+        
+        @ChildContent
     </div>
 </div>
+
+@code {
+    [Parameter]
+    public PlaceholderWidth TitleWidth { get; set; } = PlaceholderWidth.Col8;
+    
+    [Parameter]
+    public int ContentLines { get; set; } = 2;
+    
+    [Parameter]
+    public int ActionButtons { get; set; } = 3;
+    
+    [Parameter]
+    public RenderFragment? HeaderTemplate { get; set; }
+    
+    [Parameter]
+    public RenderFragment? ContentTemplate { get; set; }
+    
+    [Parameter]
+    public RenderFragment? ActionsTemplate { get; set; }
+    
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

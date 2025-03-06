@@ -1,0 +1,44 @@
+@using core.Models
+@using System.Threading.Tasks
+
+<div class="post-content">
+    @if (!string.IsNullOrEmpty(ImageUrl))
+    {
+        <div @onclick="OnClick" style="cursor: pointer;">
+            @if (IsImageLoading)
+            {
+                <ImagePreloader Style="height: 300px; width: 100%;" Class="rounded mb-3" />
+            }
+            else
+            {
+                <img src="@ImageUrl" class="img-fluid rounded mb-3" alt="Post image">
+            }
+        </div>
+    }
+    
+    <p class="card-text" style="cursor: pointer;" @onclick="OnClick">
+        @(ShowFullContent ? Content : (Content.Length > 300 ? Content.Substring(0, 300) + "..." : Content))
+    </p>
+    
+    @ChildContent
+</div>
+
+@code {
+    [Parameter]
+    public string Content { get; set; } = "";
+    
+    [Parameter]
+    public string ImageUrl { get; set; } = "";
+    
+    [Parameter]
+    public bool ShowFullContent { get; set; } = false;
+    
+    [Parameter]
+    public EventCallback OnClick { get; set; }
+    
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+    
+    [Parameter]
+    public bool IsImageLoading { get; set; } = false;
+}

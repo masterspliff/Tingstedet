@@ -1,41 +1,81 @@
-@using webapp.Models
+@using core.Models
 
 <div class="comment mb-3 @(IsReply ? "ms-4" : "")">
     <div class="d-flex">
-        <div class="vote-buttons me-2">
-            <button class="btn btn-sm p-0 d-block" @onclick="() => OnUpvote.InvokeAsync(Comment)">
-                <i class="bi bi-arrow-up-circle-fill @(Comment.UserVote > 0 ? "text-primary" : "text-secondary")" style="font-size: 0.8rem;"></i>
-            </button>
-            <div class="text-center small">@Comment.Votes</div>
-            <button class="btn btn-sm p-0 d-block" @onclick="() => OnDownvote.InvokeAsync(Comment)">
-                <i class="bi bi-arrow-down-circle-fill @(Comment.UserVote < 0 ? "text-danger" : "text-secondary")" style="font-size: 0.8rem;"></i>
-            </button>
-        </div>
+        @if (VoteButtonsTemplate != null)
+        {
+            @VoteButtonsTemplate((Comment.Votes, Comment.UserVote, 
+                () => OnUpvote.InvokeAsync(Comment), 
+                () => OnDownvote.InvokeAsync(Comment)))
+        }
+        else
+        {
+            <div class="vote-buttons me-2">
+                <button class="btn btn-sm p-0 d-block" @onclick="() => OnUpvote.InvokeAsync(Comment)">
+                    <i class="bi bi-arrow-up-circle-fill @(Comment.UserVote > 0 ? "text-primary" : "text-secondary")" style="font-size: 0.8rem;"></i>
+                </button>
+                <div class="text-center small">@Comment.Votes</div>
+                <button class="btn btn-sm p-0 d-block" @onclick="() => OnDownvote.InvokeAsync(Comment)">
+                    <i class="bi bi-arrow-down-circle-fill @(Comment.UserVote < 0 ? "text-danger" : "text-secondary")" style="font-size: 0.8rem;"></i>
+                </button>
+            </div>
+        }
+        
         <div class="flex-grow-1">
-            <div class="d-flex align-items-center mb-1">
-                <small class="fw-bold me-2">@Comment.Author</small>
-                <small class="text-muted">@Comment.TimeAgo</small>
-            </div>
-            <p class="mb-1">@Comment.Content</p>
-            <div class="d-flex">
-                <button class="btn btn-sm btn-link text-decoration-none p-0 me-3" @onclick="ToggleReplyForm">
-                    <i class="bi bi-reply"></i> Reply
-                </button>
-                <button class="btn btn-sm btn-link text-decoration-none p-0">
-                    <i class="bi bi-share"></i> Share
-                </button>
-            </div>
+            @if (HeaderTemplate != null)
+            {
+                @HeaderTemplate(Comment)
+            }
+            else
+            {
+                <div class="d-flex align-items-center mb-1">
+                    <small class="fw-bold me-2">@Comment.Author</small>
+                    <small class="text-muted">@Comment.TimeAgo</small>
+                </div>
+            }
+            
+            @if (ContentTemplate != null)
+            {
+                @ContentTemplate(Comment)
+            }
+            else
+            {
+                <p class="mb-1">@Comment.Content</p>
+            }
+            
+            @if (ActionsTemplate != null)
+            {
+                @ActionsTemplate((Comment, ToggleReplyForm))
+            }
+            else
+            {
+                <div class="d-flex">
+                    <button class="btn btn-sm btn-link text-decoration-none p-0 me-3" @onclick="ToggleReplyForm">
+                        <i class="bi bi-reply"></i> Reply
+                    </button>
+                    <button class="btn btn-sm btn-link text-decoration-none p-0">
+                        <i class="bi bi-share"></i> Share
+                    </button>
+                </div>
+            }
             
             @if (IsReplyFormVisible)
             {
-                <div class="mt-2 mb-3">
-                    <textarea class="form-control form-control-sm mb-2" rows="3" 
-                              placeholder="What are your thoughts?" @bind="NewReplyText"></textarea>
-                    <div class="d-flex justify-content-end">
-                        <button class="btn btn-sm btn-secondary me-2" @onclick="ToggleReplyForm">Cancel</button>
-                        <button class="btn btn-sm btn-primary" @onclick="SubmitReply">Reply</button>
+                @if (ReplyFormTemplate != null)
+                {
+                    @ReplyFormTemplate((NewReplyText, SetReplyText, ToggleReplyForm, SubmitReply))
+                }
+                else
+                {
+                    <div class="mt-2 mb-3">
+                        <textarea class="form-control form-control-sm mb-2" rows="3" 
+                                  placeholder="What are your thoughts?" @bind="NewReplyText"></textarea>
+                        <div class="d-flex justify-content-end">
+                            <button class="btn btn-sm btn-secondary me-2" @onclick="ToggleReplyForm">Cancel</button>
+                            <button class="btn btn-sm btn-primary" @onclick="SubmitReply">Reply</button>
+                        </div>
                     </div>
-                </div>
+                }
             }
             
             @if (Comment.Replies.Any())
@@ -48,10 +88,17 @@
                             IsReply="true"
                             OnUpvote="OnUpvote"
                             OnDownvote="OnDownvote"
-                            OnAddReply="OnAddReply" />
+                            OnAddReply="OnAddReply"
+                            VoteButtonsTemplate="VoteButtonsTemplate"
+                            HeaderTemplate="HeaderTemplate"
+                            ContentTemplate="ContentTemplate"
+                            ActionsTemplate="ActionsTemplate"
+                            ReplyFormTemplate="ReplyFormTemplate" />
                     }
                 </div>
             }
+            
+            @ChildContent
         </div>
     </div>
 </div>
@@ -72,6 +119,24 @@
     [Parameter]
     public EventCallback<(Comment ParentComment, string ReplyText)> OnAddReply { get; set; }
     
+    [Parameter]
+    public RenderFragment<(int votes, int userVote, Func<Task> onUpvote, Func<Task> onDownvote)>? VoteButtonsTemplate { get; set; }
+    
+    [Parameter]
+    public RenderFragment<Comment>? HeaderTemplate { get; set; }
+    
+    [Parameter]
+    public RenderFragment<Comment>? ContentTemplate { get; set; }
+    
+    [Parameter]
+    public RenderFragment<(Comment comment, Action toggleReply)>? ActionsTemplate { get; set; }
+    
+    [Parameter]
+    public RenderFragment<(string text, Action<string> setText, Action cancel, Func<Task> submit)>? ReplyFormTemplate { get; set; }
+    
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+    
     private bool IsReplyFormVisible { get; set; } = false;
     private string NewReplyText { get; set; } = "";
     
@@ -82,6 +147,11 @@
         {
             NewReplyText = "";
         }
+    }
+    
+    private void SetReplyText(string text)
+    {
+        NewReplyText = text;
     }
     
     private async Task SubmitReply()

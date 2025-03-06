@@ -1,5 +1,5 @@
 ﻿@page "/"
-@using webapp.Models
+@using core.Models
 @using webapp.Services
 @using webapp.Components.Post
 @using webapp.Components.Sidebar
@@ -27,7 +27,8 @@
                     <PostCard 
                         Post="post" 
                         OnUpvote="HandleUpvote" 
-                        OnDownvote="HandleDownvote" />
+                        OnDownvote="HandleDownvote"
+                        IsImageLoading="IsImageLoading(post.Id)" />
                 }
             }
         </div>
@@ -49,11 +50,26 @@
 @code {
     private bool _contentLoaded = false;
     private List<Post> _posts = new();
+    private Dictionary<int, bool> _imageLoadingStates = new();
 
     protected override async Task OnInitializedAsync()
     {
         _posts = await PostService.GetPostsAsync();
         _contentLoaded = true;
+        
+        // Initialize image loading states
+        foreach (var post in _posts.Where(p => !string.IsNullOrEmpty(p.ImageUrl)))
+        {
+            _imageLoadingStates[post.Id] = true;
+            _ = LoadPostImage(post);
+        }
+    }
+    
+    private async Task LoadPostImage(Post post)
+    {
+        await PostService.LoadImageAsync(post.ImageUrl);
+        _imageLoadingStates[post.Id] = false;
+        StateHasChanged();
     }
 
     private void HandleUpvote(Post post)
@@ -64,6 +80,11 @@
     private void HandleDownvote(Post post)
     {
         PostService.DownvotePost(post);
+    }
+    
+    private bool IsImageLoading(int postId)
+    {
+        return _imageLoadingStates.ContainsKey(postId) && _imageLoadingStates[postId];
     }
 }
 

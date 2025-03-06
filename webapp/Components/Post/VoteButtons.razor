@@ -1,0 +1,69 @@
+@using core.Models
+
+<div class="vote-buttons me-3">
+    <button class="btn btn-sm p-0 d-block" @onclick="HandleUpvote">
+        @if (UpvoteTemplate != null)
+        {
+            @UpvoteTemplate(UserVote > 0)
+        }
+        else
+        {
+            <i class="bi bi-arrow-up-circle @(UserVote > 0 ? "text-primary" : "")"></i>
+        }
+    </button>
+    
+    <div class="text-center">
+        @if (VoteCountTemplate != null)
+        {
+            @VoteCountTemplate(Votes)
+        }
+        else
+        {
+            @Votes
+        }
+    </div>
+    
+    <button class="btn btn-sm p-0 d-block" @onclick="HandleDownvote">
+        @if (DownvoteTemplate != null)
+        {
+            @DownvoteTemplate(UserVote < 0)
+        }
+        else
+        {
+            <i class="bi bi-arrow-down-circle @(UserVote < 0 ? "text-danger" : "")"></i>
+        }
+    </button>
+</div>
+
+@code {
+    [Parameter]
+    public int Votes { get; set; }
+    
+    [Parameter]
+    public int UserVote { get; set; }
+    
+    [Parameter]
+    public EventCallback OnUpvote { get; set; }
+    
+    [Parameter]
+    public EventCallback OnDownvote { get; set; }
+    
+    [Parameter]
+    public RenderFragment<bool>? UpvoteTemplate { get; set; }
+    
+    [Parameter]
+    public RenderFragment<int>? VoteCountTemplate { get; set; }
+    
+    [Parameter]
+    public RenderFragment<bool>? DownvoteTemplate { get; set; }
+    
+    private async Task HandleUpvote()
+    {
+        await OnUpvote.InvokeAsync();
+    }
+    
+    private async Task HandleDownvote()
+    {
+        await OnDownvote.InvokeAsync();
+    }
+}

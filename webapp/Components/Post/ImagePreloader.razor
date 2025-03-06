@@ -1,0 +1,22 @@
+@using Microsoft.AspNetCore.Components
+
+<div class="image-preloader @Class" style="@Style">
+    <div class="d-flex justify-content-center align-items-center h-100">
+        <div class="d-flex">
+            <Spinner Type="SpinnerType.Grow" Class="ms-2" Color="SpinnerColor.Primary" />
+            <Spinner Type="SpinnerType.Grow" Class="ms-2" Color="SpinnerColor.Primary" />
+            <Spinner Type="SpinnerType.Grow" Class="ms-2" Color="SpinnerColor.Primary" />
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string Class { get; set; } = "";
+    
+    [Parameter]
+    public string Style { get; set; } = "height: 200px;";
+    
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

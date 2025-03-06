@@ -1,4 +1,4 @@
-namespace webapp.Models
+namespace core.Models
 {
     public class Post
     {

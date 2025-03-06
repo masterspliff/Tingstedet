@@ -1,5 +1,5 @@
 @page "/thread/{PostId:int}"
-@using webapp.Models
+@using core.Models
 @using webapp.Services
 @using webapp.Components.Post
 @inject IPostService PostService
@@ -9,46 +9,61 @@
     <div class="row">
         <!-- Main content area -->
         <div class="col-md-8">
+            <!-- Back button - always visible -->
+            <div class="mb-3">
+                <button class="btn btn-link p-0" @onclick="NavigateBack">
+                    <i class="bi bi-arrow-left"></i> Back to posts
+                </button>
+            </div>
+            
             @if (_loading)
             {
                 <PlaceholderContainer Animation="PlaceholderAnimation.Glow">
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <Placeholder Width="PlaceholderWidth.Col8" Size="PlaceholderSize.Large" />
-                            <Placeholder Width="PlaceholderWidth.Col12" />
-                            <Placeholder Width="PlaceholderWidth.Col12" />
-                            <Placeholder Width="PlaceholderWidth.Col12" />
-                        </div>
-                    </div>
+                    <PostCardPlaceholder ContentLines="4" />
                     
                     <div class="card mb-3">
                         <div class="card-body">
                             <Placeholder Width="PlaceholderWidth.Col6" Size="PlaceholderSize.Small" />
-                            <Placeholder Width="PlaceholderWidth.Col12" />
-                            <Placeholder Width="PlaceholderWidth.Col10" />
+                            <Placeholder Width="PlaceholderWidth.Col12" Class="mt-2" />
+                            <div class="d-flex justify-content-end mt-2">
+                                <Placeholder Width="PlaceholderWidth.Col2" Size="PlaceholderSize.Small" />
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <Placeholder Width="PlaceholderWidth.Col6" Size="PlaceholderSize.Small" />
-                            <Placeholder Width="PlaceholderWidth.Col12" />
-                            <Placeholder Width="PlaceholderWidth.Col10" />
+                    @for (int i = 0; i < 2; i++)
+                    {
+                        <div class="comment mb-3">
+                            <div class="d-flex">
+                                <div class="me-2" style="width: 30px;">
+                                    <Placeholder Width="PlaceholderWidth.Col12" Size="PlaceholderSize.Small" />
+                                </div>
+                                <div class="flex-grow-1">
+                                    <Placeholder Width="PlaceholderWidth.Col3" Size="PlaceholderSize.Small" />
+                                    <Placeholder Width="PlaceholderWidth.Col12" Class="mt-1" />
+                                    <Placeholder Width="PlaceholderWidth.Col10" Class="mt-1" />
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    }
                 </PlaceholderContainer>
             }
             else
             {
-                <!-- Back button -->
-                <div class="mb-3">
-                    <button class="btn btn-link p-0" @onclick="NavigateBack">
-                        <i class="bi bi-arrow-left"></i> Back to posts
-                    </button>
-                </div>
-                
                 <!-- Post content -->
-                <PostCard Post="_post" OnUpvote="HandleUpvote" OnDownvote="HandleDownvote" ShowFullContent="true" />
+                <PostCard 
+                    Post="_post" 
+                    OnUpvote="HandleUpvote" 
+                    OnDownvote="HandleDownvote" 
+                    ShowFullContent="true" 
+                    IsImageLoading="_imageLoading">
+                    <HeaderTemplate>
+                            <div>
+                                <small class="text-muted">Posted by u/@context.Author @context.TimeAgo</small>
+                                <h4 class="card-title mt-1">@context.Title</h4>
+                            </div>
+                    </HeaderTemplate>
+                </PostCard>
                 
                 <!-- Comment form -->
                 <div class="card mb-4">
@@ -65,30 +80,40 @@
                 <!-- Comments section -->
                 <div class="comments-section">
                     <div class="d-flex align-items-center mb-3">
-                        <h5 class="mb-0 me-2">Comments</h5>
+                        <h5 class="mb-0 me-2">Comments (@_post.Comments)</h5>
                         <div class="dropdown">
                             <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                Sort By: Best
+                                Sort By: @_selectedSort
                             </button>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="#">Best</a></li>
-                                <li><a class="dropdown-item" href="#">Top</a></li>
-                                <li><a class="dropdown-item" href="#">New</a></li>
-                                <li><a class="dropdown-item" href="#">Controversial</a></li>
-                                <li><a class="dropdown-item" href="#">Old</a></li>
+                                @foreach (var sortOption in _sortOptions)
+                                {
+                                    <li><button class="dropdown-item" @onclick="() => SetSortOption(sortOption)">@sortOption</button></li>
+                                }
                             </ul>
                         </div>
                     </div>
                     
                     @if (_post.CommentsList.Any())
                     {
-                        @foreach (var comment in _post.CommentsList)
+                        @foreach (var comment in GetSortedComments())
                         {
                             <CommentCard 
                                 Comment="comment" 
                                 OnUpvote="HandleCommentUpvote" 
                                 OnDownvote="HandleCommentDownvote"
-                                OnAddReply="HandleAddReply" />
+                                OnAddReply="HandleAddReply">
+                                <HeaderTemplate>
+                                        <div class="d-flex align-items-center mb-1">
+                                            <small class="fw-bold me-2">@context.Author</small>
+                                            <small class="text-muted">@context.TimeAgo</small>
+                                            @if (context.Author == _post.Author)
+                                            {
+                                                <span class="badge bg-primary ms-2">Author</span>
+                                            }
+                                        </div>
+                                </HeaderTemplate>
+                            </CommentCard>
                         }
                     }
                     else
@@ -149,6 +174,9 @@
     private Post _post = new();
     private bool _loading = true;
     private string _newCommentText = "";
+    private bool _imageLoading = false;
+    private string _selectedSort = "Best";
+    private List<string> _sortOptions = new() { "Best", "Top", "New", "Controversial", "Old" };
     
     protected override async Task OnInitializedAsync()
     {
@@ -157,7 +185,10 @@
     
     protected override async Task OnParametersSetAsync()
     {
-        await LoadPost();
+        if (_post.Id != PostId)
+        {
+            await LoadPost();
+        }
     }
     
     private async Task LoadPost()
@@ -165,6 +196,37 @@
         _loading = true;
         _post = await PostService.GetPostByIdAsync(PostId);
         _loading = false;
+        
+        // Start loading image if post has one
+        if (!string.IsNullOrEmpty(_post.ImageUrl))
+        {
+            _imageLoading = true;
+            await LoadPostImage();
+        }
+    }
+    
+    private async Task LoadPostImage()
+    {
+        await PostService.LoadImageAsync(_post.ImageUrl);
+        _imageLoading = false;
+        StateHasChanged();
+    }
+    
+    private List<Comment> GetSortedComments()
+    {
+        return _selectedSort switch
+        {
+            "Top" => _post.CommentsList.OrderByDescending(c => c.Votes).ToList(),
+            "New" => _post.CommentsList.OrderByDescending(c => c.TimeAgo.Contains("just now")).ThenByDescending(c => c.Id).ToList(),
+            "Controversial" => _post.CommentsList.OrderBy(c => Math.Abs(c.Votes)).ToList(),
+            "Old" => _post.CommentsList.OrderBy(c => c.Id).ToList(),
+            _ => _post.CommentsList.OrderByDescending(c => c.Votes).ToList() // "Best" is default
+        };
+    }
+    
+    private void SetSortOption(string option)
+    {
+        _selectedSort = option;
     }
     
     private void NavigateBack()
