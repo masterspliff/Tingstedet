@@ -1,0 +1,51 @@
+@using webapp.Models
+
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="d-flex align-items-center mb-2">
+            <div class="vote-buttons me-3">
+                <button class="btn btn-sm p-0 d-block" @onclick="() => OnUpvote.InvokeAsync(Post)">
+                    <i class="bi bi-arrow-up-circle @(Post.UserVote > 0 ? "text-primary" : "")"></i>
+                </button>
+                <div class="text-center">@Post.Votes</div>
+                <button class="btn btn-sm p-0 d-block" @onclick="() => OnDownvote.InvokeAsync(Post)">
+                    <i class="bi bi-arrow-down-circle @(Post.UserVote < 0 ? "text-danger" : "")"></i>
+                </button>
+            </div>
+            <div>
+                <small class="text-muted">Posted by u/@Post.Author @Post.TimeAgo</small>
+                <h5 class="card-title mb-0">@Post.Title</h5>
+            </div>
+        </div>
+        
+        @if (!string.IsNullOrEmpty(Post.ImageUrl))
+        {
+            <img src="@Post.ImageUrl" class="img-fluid rounded mb-3" alt="Post image">
+        }
+        
+        <p class="card-text">@Post.Content</p>
+        
+        <div class="d-flex mt-2">
+            <button class="btn btn-sm btn-link text-decoration-none">
+                <i class="bi bi-chat-left-text"></i> @Post.Comments Comments
+            </button>
+            <button class="btn btn-sm btn-link text-decoration-none">
+                <i class="bi bi-share"></i> Share
+            </button>
+            <button class="btn btn-sm btn-link text-decoration-none">
+                <i class="bi bi-bookmark"></i> Save
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Post Post { get; set; } = new();
+    
+    [Parameter]
+    public EventCallback<Post> OnUpvote { get; set; }
+    
+    [Parameter]
+    public EventCallback<Post> OnDownvote { get; set; }
+}
