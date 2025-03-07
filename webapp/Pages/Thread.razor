@@ -244,10 +244,10 @@
         return _selectedSort switch
         {
             "Top" => _post.CommentsList.OrderByDescending(c => c.Votes).ToList(),
-            "New" => _post.CommentsList.OrderByDescending(c => c.TimeAgo.Contains("just now")).ThenByDescending(c => c.Id).ToList(),
+            "New" => _post.CommentsList.OrderByDescending(c => c.CreatedAt).ToList(),
             "Controversial" => _post.CommentsList.OrderBy(c => Math.Abs(c.Votes)).ToList(),
-            "Old" => _post.CommentsList.OrderBy(c => c.Id).ToList(),
-            _ => _post.CommentsList.OrderByDescending(c => c.Votes).ToList() // "Best" is default
+            "Old" => _post.CommentsList.OrderBy(c => c.CreatedAt).ToList(),
+            _ => _post.CommentsList.OrderByDescending(c => c.Votes).ThenByDescending(c => c.CreatedAt).ToList() // "Best" is default
         };
     }
     
@@ -268,22 +268,30 @@
     
     private async Task HandleUpvote(Post post)
     {
-        await PostService.UpvotePostAsync(post, _commentAuthor.Length > 0 ? _commentAuthor : "User");
+        var updatedPost = await PostService.UpvotePostAsync(post.Id, _commentAuthor.Length > 0 ? _commentAuthor : "User");
+        post.Votes = updatedPost.Votes;
+        post.UserVote = updatedPost.UserVote;
     }
     
     private async Task HandleDownvote(Post post)
     {
-        await PostService.DownvotePostAsync(post, _commentAuthor.Length > 0 ? _commentAuthor : "User");
+        var updatedPost = await PostService.DownvotePostAsync(post.Id, _commentAuthor.Length > 0 ? _commentAuthor : "User");
+        post.Votes = updatedPost.Votes;
+        post.UserVote = updatedPost.UserVote;
     }
     
     private async Task HandleCommentUpvote(Comment comment)
     {
-        await PostService.UpvoteCommentAsync(comment, _commentAuthor.Length > 0 ? _commentAuthor : "User");
+        var updatedComment = await PostService.UpvoteCommentAsync(_post.Id, comment.Id, _commentAuthor.Length > 0 ? _commentAuthor : "User");
+        comment.Votes = updatedComment.Votes;
+        comment.UserVote = updatedComment.UserVote;
     }
     
     private async Task HandleCommentDownvote(Comment comment)
     {
-        await PostService.DownvoteCommentAsync(comment, _commentAuthor.Length > 0 ? _commentAuthor : "User");
+        var updatedComment = await PostService.DownvoteCommentAsync(_post.Id, comment.Id, _commentAuthor.Length > 0 ? _commentAuthor : "User");
+        comment.Votes = updatedComment.Votes;
+        comment.UserVote = updatedComment.UserVote;
     }
     
     private async Task AddComment()
@@ -301,14 +309,18 @@
         
         try
         {
-            await PostService.AddCommentAsync(_post, _newCommentText, _commentAuthor);
+            await PostService.AddCommentAsync(_post.Id, _newCommentText, _commentAuthor);
             _newCommentText = ""; // Clear comment text after successful submission
         }
         catch (Exception)
         {
             // Fallback to client-side
-            PostService.AddComment(_post, _newCommentText);
-            _newCommentText = "";
+            var post = await PostService.GetPostByIdAsync(_post.Id);
+            if (post != null)
+            {
+                PostService.AddComment(post, _newCommentText);
+                _newCommentText = "";
+            }
         }
         finally
         {

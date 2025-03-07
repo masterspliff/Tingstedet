@@ -80,6 +80,13 @@
                             }
                         </button>
                     </div>
+                    
+                    @if (!string.IsNullOrEmpty(_errorMessage))
+                    {
+                        <div class="alert alert-danger mt-3" role="alert">
+                            @_errorMessage
+                        </div>
+                    }
                 </div>
             </div>
         </div>
@@ -110,6 +117,7 @@
     private string _author = string.Empty;
     private bool _isTextPost = true;
     private bool _isSubmitting = false;
+    private string _errorMessage = string.Empty;
     
     // Validation flags
     private bool _titleError = false;
@@ -123,7 +131,8 @@
     
     private async Task SubmitPost()
     {
-        // Reset validation flags
+        // Reset error message and validation flags
+        _errorMessage = string.Empty;
         _titleError = string.IsNullOrWhiteSpace(_title) || _title.Length < 3;
         _urlError = !_isTextPost && (!string.IsNullOrEmpty(_url) && !Uri.IsWellFormedUriString(_url, UriKind.Absolute));
         _authorError = string.IsNullOrWhiteSpace(_author);
@@ -144,19 +153,26 @@
                 Author = _author,
                 Content = _isTextPost ? _content : string.Empty,
                 Url = !_isTextPost ? _url : null,
-                TimeAgo = "just now",
-                Votes = 0,
-                UserVote = 1 // Auto-upvote your own post
+                Votes = 0
             };
             
-            await PostService.CreatePostAsync(post);
+            var result = await PostService.CreatePostAsync(post);
             
-            // Navigate to home page after successful submission
-            NavigationManager.NavigateTo("/");
+            if (result != null)
+            {
+                // Navigate to home page after successful submission
+                NavigationManager.NavigateTo("/");
+            }
+            else
+            {
+                // Set error message
+                _errorMessage = "Failed to create post. Please try again.";
+            }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Handle errors
+            Console.Error.WriteLine($"Error creating post: {ex.Message}");
+            _errorMessage = "An error occurred while creating your post.";
         }
         finally
         {

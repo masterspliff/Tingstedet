@@ -101,12 +101,16 @@
 
     private async Task HandleUpvote(Post post)
     {
-        await PostService.UpvotePostAsync(post, _currentUser);
+        var updatedPost = await PostService.UpvotePostAsync(post.Id, _currentUser);
+        post.Votes = updatedPost.Votes;
+        post.UserVote = updatedPost.UserVote;
     }
 
     private async Task HandleDownvote(Post post)
     {
-        await PostService.DownvotePostAsync(post, _currentUser);
+        var updatedPost = await PostService.DownvotePostAsync(post.Id, _currentUser);
+        post.Votes = updatedPost.Votes;
+        post.UserVote = updatedPost.UserVote;
     }
     
     private bool IsImageLoading(int postId)
