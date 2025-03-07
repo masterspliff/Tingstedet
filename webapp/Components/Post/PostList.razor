@@ -1,0 +1,72 @@
+@using core.Models
+@using webapp.Services
+@inject IPostService PostService
+@inject NavigationManager NavigationManager
+
+<div class="post-list-container mb-4">
+    <div class="card">
+        <div class="card-body">
+            <div class="d-flex">
+                <div class="dropdown me-2">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        @SortOption
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><button class="dropdown-item" @onclick='() => SetSortOption("Hot")'>Hot</button></li>
+                        <li><button class="dropdown-item" @onclick='() => SetSortOption("New")'>New</button></li>
+                        <li><button class="dropdown-item" @onclick='() => SetSortOption("Top")'>Top</button></li>
+                        <li><button class="dropdown-item" @onclick='() => SetSortOption("Controversial")'>Controversial</button></li>
+                    </ul>
+                </div>
+                <div class="input-group">
+                    <input type="text" class="form-control" placeholder="Search posts..." @bind="SearchTerm" @bind:event="oninput" @onkeyup="HandleSearchKeyUp">
+                    <button class="btn btn-outline-secondary" type="button" @onclick="Search">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public bool IsLoading { get; set; } = false;
+
+    [Parameter]
+    public IEnumerable<Post>? Posts { get; set; }
+
+    [Parameter]
+    public EventCallback<Post> OnPostUpvoted { get; set; }
+
+    [Parameter]
+    public EventCallback<Post> OnPostDownvoted { get; set; }
+    
+    [Parameter]
+    public EventCallback<string> OnSearch { get; set; }
+    
+    [Parameter]
+    public EventCallback<string> OnSortChanged { get; set; }
+
+    private string SearchTerm { get; set; } = "";
+    private string SortOption { get; set; } = "Hot";
+    
+    private void Search()
+    {
+        OnSearch.InvokeAsync(SearchTerm);
+    }
+    
+    private void HandleSearchKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            Search();
+        }
+    }
+    
+    private void SetSortOption(string option)
+    {
+        SortOption = option;
+        OnSortChanged.InvokeAsync(option);
+    }
+}

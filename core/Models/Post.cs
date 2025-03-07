@@ -28,7 +28,7 @@ namespace core.Models
         public int Votes { get; set; }
         
         [NotMapped]
-        public int Comments => CommentsList?.Count ?? 0;
+        public int Comments { get => CommentsList?.Count ?? 0; set { } }
         
         public string? Url { get; set; }
         

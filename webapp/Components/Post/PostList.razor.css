@@ -1,0 +1,17 @@
+/* PostList Component Styles */
+.post-list-container {
+    margin-bottom: 1rem;
+}
+
+.post-list-container .card {
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.post-list-container .dropdown-toggle {
+    min-width: 120px;
+}
+
+.post-list-container .input-group {
+    flex: 1;
+}

@@ -161,6 +161,7 @@
             await OnAddReply.InvokeAsync((Comment, NewReplyText));
             NewReplyText = "";
             IsReplyFormVisible = false;
+            StateHasChanged(); // Ensure UI updates after reply is added
         }
     }
 }

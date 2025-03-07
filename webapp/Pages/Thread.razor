@@ -234,7 +234,10 @@
     
     private async Task LoadPostImage()
     {
-        await PostService.LoadImageAsync(_post.Url);
+        if (!string.IsNullOrEmpty(_post.Url))
+        {
+            await PostService.LoadImageAsync(_post.Url);
+        }
         _imageLoading = false;
         StateHasChanged();
     }
@@ -309,18 +312,29 @@
         
         try
         {
-            await PostService.AddCommentAsync(_post.Id, _newCommentText, _commentAuthor);
+            var newComment = await PostService.AddCommentAsync(_post.Id, _newCommentText, _commentAuthor);
+            
+            // Add the new comment to the post's comments list
+            if (newComment != null && newComment.Id > 0)
+            {
+                _post.CommentsList.Add(newComment);
+                _post.Comments = _post.CommentsList.Count;
+            }
+            else
+            {
+                // Refresh the post to get updated comments
+                _post = await PostService.GetPostByIdAsync(_post.Id);
+            }
+            
             _newCommentText = ""; // Clear comment text after successful submission
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Console.Error.WriteLine($"Error adding comment: {ex.Message}");
+            
             // Fallback to client-side
-            var post = await PostService.GetPostByIdAsync(_post.Id);
-            if (post != null)
-            {
-                PostService.AddComment(post, _newCommentText);
-                _newCommentText = "";
-            }
+            PostService.AddComment(_post, _newCommentText);
+            _newCommentText = "";
         }
         finally
         {
@@ -332,7 +346,14 @@
     {
         if (!string.IsNullOrWhiteSpace(data.ReplyText))
         {
+            // Use the current user's name if available, otherwise use a default
+            string author = string.IsNullOrWhiteSpace(_commentAuthor) ? "User" : _commentAuthor;
+            
+            // Add the reply to the parent comment
             PostService.AddReply(data.ParentComment, data.ReplyText);
+            
+            // Force UI refresh
+            StateHasChanged();
         }
     }
 }

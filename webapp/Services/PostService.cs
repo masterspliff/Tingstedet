@@ -50,12 +50,24 @@ namespace webapp.Services
             try
             {
                 // Using the new minimal API endpoint for getting posts
-                var posts = await _httpClient.GetFromJsonAsync<List<Post>>("/api/posts", _jsonOptions);
-                if (posts != null)
+                var response = await _httpClient.GetAsync("/api/posts");
+                
+                if (response.IsSuccessStatusCode)
                 {
-                    _cachedPosts.Clear();
-                    _cachedPosts.AddRange(posts);
-                    return posts;
+                    var content = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"API Response: {content}");
+                    
+                    var posts = JsonSerializer.Deserialize<List<Post>>(content, _jsonOptions);
+                    if (posts != null)
+                    {
+                        _cachedPosts.Clear();
+                        _cachedPosts.AddRange(posts);
+                        return posts;
+                    }
+                }
+                else
+                {
+                    Console.Error.WriteLine($"API returned status code: {response.StatusCode}");
                 }
             }
             catch (Exception ex)
@@ -77,22 +89,35 @@ namespace webapp.Services
             try
             {
                 // Using the new minimal API endpoint for getting a post by ID
-                var post = await _httpClient.GetFromJsonAsync<Post>($"/api/posts/{id}", _jsonOptions);
-                return post ?? new Post();
+                var response = await _httpClient.GetAsync($"/api/posts/{id}");
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"API Response for post {id}: {content}");
+                    
+                    var post = JsonSerializer.Deserialize<Post>(content, _jsonOptions);
+                    return post ?? new Post();
+                }
+                else
+                {
+                    Console.Error.WriteLine($"API returned status code: {response.StatusCode} for post {id}");
+                }
             }
             catch (Exception ex)
             {
                 Console.Error.WriteLine($"Error fetching post {id}: {ex.Message}");
-                // If API call fails, try to find in cached posts
-                var cachedPost = _cachedPosts.FirstOrDefault(p => p.Id == id);
-                if (cachedPost != null)
-                {
-                    return cachedPost;
-                }
-                
-                // If not in cache, return fallback
-                return new Post { Title = "Post not found", Author = "Unknown", TimeAgo = "unknown" };
             }
+            
+            // If API call fails, try to find in cached posts
+            var cachedPost = _cachedPosts.FirstOrDefault(p => p.Id == id);
+            if (cachedPost != null)
+            {
+                return cachedPost;
+            }
+            
+            // If not in cache, return fallback
+            return new Post { Title = "Post not found", Author = "Unknown", TimeAgo = "unknown" };
         }
         
         public async Task<bool> LoadImageAsync(string imageUrl)
@@ -333,22 +358,40 @@ namespace webapp.Services
                     CreatedAt = DateTime.UtcNow
                 };
                 
+                Console.WriteLine($"Adding comment to post {postId}: {commentText} by {author}");
+                
                 // Using the new minimal API endpoint for adding comments to posts
                 var response = await _httpClient.PostAsJsonAsync($"/api/posts/{postId}/comments", comment);
                 
                 if (response.IsSuccessStatusCode)
                 {
-                    var createdComment = await response.Content.ReadFromJsonAsync<Comment>(_jsonOptions);
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"API Response for adding comment: {responseContent}");
+                    
+                    var createdComment = JsonSerializer.Deserialize<Comment>(responseContent, _jsonOptions);
                     if (createdComment != null)
                     {
+                        // Set TimeAgo if not provided by API
+                        if (string.IsNullOrEmpty(createdComment.TimeAgo))
+                        {
+                            createdComment.TimeAgo = "just now";
+                        }
+                        
                         // Find the post in the cache and add the comment
                         var post = _cachedPosts.FirstOrDefault(p => p.Id == postId);
                         if (post != null)
                         {
                             post.CommentsList.Add(createdComment);
+                            post.Comments = post.CommentsList.Count;
                         }
                         return createdComment;
                     }
+                }
+                else
+                {
+                    Console.Error.WriteLine($"API returned status code: {response.StatusCode} for adding comment");
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Console.Error.WriteLine($"Error content: {errorContent}");
                 }
             }
             catch (Exception ex)
@@ -366,11 +409,13 @@ namespace webapp.Services
             // If API call failed or post not found, create a placeholder comment
             return new Comment
             {
-                Id = -1,
+                Id = _nextCommentId++,
                 Content = commentText,
                 Author = author,
                 TimeAgo = "just now",
-                Votes = 0
+                Votes = 1,
+                UserVote = 1,
+                PostId = postId
             };
         }
 
@@ -469,6 +514,7 @@ namespace webapp.Services
             };
 
             post.CommentsList.Add(comment);
+            post.Comments = post.CommentsList.Count;
         }
 
         public void AddReply(Comment parentComment, string replyText)

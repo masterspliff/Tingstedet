@@ -15,35 +15,45 @@
                 <button class="btn btn-primary" @onclick="NavigateToCreatePost">Create Post</button>
             </div>
             
+            <!-- PostList component for search and sorting -->
+            <PostList 
+                IsLoading="!_contentLoaded"
+                OnSearch="HandleSearch"
+                OnSortChanged="HandleSortChange" />
+                
+            <!-- Reddit-like post display -->
             @if (!_contentLoaded)
             {
-                <!-- Placeholder for posts while loading -->
-                <PlaceholderContainer Animation="PlaceholderAnimation.Glow">
-                    @for (int i = 0; i < 5; i++)
+                <div class="row">
+                    @for (int i = 0; i < 3; i++)
                     {
-                        <PostCardPlaceholder />
+                        <div class="col-12 mb-3">
+                            <PostCardPlaceholder />
+                        </div>
                     }
-                </PlaceholderContainer>
+                </div>
+            }
+            else if (!_filteredPosts.Any())
+            {
+                <div class="text-center py-5">
+                    <p class="text-muted">No posts found. Be the first to create a post!</p>
+                    <button class="btn btn-primary mt-3" @onclick="NavigateToCreatePost">Create a Post</button>
+                </div>
             }
             else
             {
-                <!-- Actual content after loading -->
-                @foreach (var post in _posts)
-                {
-                    <PostCard 
-                        Post="post" 
-                        OnUpvote="(p) => HandleUpvote(p)" 
-                        OnDownvote="(p) => HandleDownvote(p)"
-                        IsImageLoading="IsImageLoading(post.Id)" />
-                }
-                
-                @if (!_posts.Any())
-                {
-                    <div class="text-center py-5">
-                        <p class="text-muted">No posts found. Be the first to create a post!</p>
-                        <button class="btn btn-primary mt-3" @onclick="NavigateToCreatePost">Create a Post</button>
-                    </div>
-                }
+                <div class="posts-container">
+                    @foreach (var post in _filteredPosts)
+                    {
+                        <div class="mb-3">
+                            <PostCard 
+                                Post="post" 
+                                OnUpvote="HandleUpvote" 
+                                OnDownvote="HandleDownvote"
+                                IsImageLoading="IsImageLoading(post.Id)" />
+                        </div>
+                    }
+                </div>
             }
         </div>
         
@@ -64,8 +74,11 @@
 @code {
     private bool _contentLoaded = false;
     private List<Post> _posts = new();
+    private List<Post> _filteredPosts = new();
     private Dictionary<int, bool> _imageLoadingStates = new();
     private string _currentUser = "User";
+    private string _searchTerm = "";
+    private string _currentSort = "Hot";
 
     protected override async Task OnInitializedAsync()
     {
@@ -77,6 +90,7 @@
         try 
         {
             _posts = await PostService.GetPostsAsync();
+            ApplySortAndFilter();
             _contentLoaded = true;
             
             // Initialize image loading states
@@ -86,15 +100,39 @@
                 _ = LoadPostImage(post);
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Console.Error.WriteLine($"Error loading posts: {ex.Message}");
             _contentLoaded = true;
         }
     }
     
+    private void ApplySortAndFilter()
+    {
+        // First apply search filter if any
+        var filtered = string.IsNullOrWhiteSpace(_searchTerm) 
+            ? _posts 
+            : _posts.Where(p => 
+                p.Title.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) || 
+                p.Content.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                p.Author.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase)).ToList();
+        
+        // Then apply sorting
+        _filteredPosts = _currentSort switch
+        {
+            "New" => filtered.OrderByDescending(p => p.CreatedAt).ToList(),
+            "Top" => filtered.OrderByDescending(p => p.Votes).ToList(),
+            "Controversial" => filtered.OrderBy(p => Math.Abs(p.Votes)).ToList(),
+            _ => filtered.OrderByDescending(p => p.Votes).ThenByDescending(p => p.CreatedAt).ToList() // "Hot" is default
+        };
+    }
+    
     private async Task LoadPostImage(Post post)
     {
-        await PostService.LoadImageAsync(post.Url);
+        if (!string.IsNullOrEmpty(post.Url))
+        {
+            await PostService.LoadImageAsync(post.Url);
+        }
         _imageLoadingStates[post.Id] = false;
         StateHasChanged();
     }
@@ -111,6 +149,18 @@
         var updatedPost = await PostService.DownvotePostAsync(post.Id, _currentUser);
         post.Votes = updatedPost.Votes;
         post.UserVote = updatedPost.UserVote;
+    }
+    
+    private void HandleSearch(string searchTerm)
+    {
+        _searchTerm = searchTerm;
+        ApplySortAndFilter();
+    }
+    
+    private void HandleSortChange(string sortOption)
+    {
+        _currentSort = sortOption;
+        ApplySortAndFilter();
     }
     
     private bool IsImageLoading(int postId)
