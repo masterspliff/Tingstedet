@@ -15,8 +15,9 @@ namespace webapp.Services
         Task<Comment> UpvoteCommentAsync(int postId, int commentId, string username);
         Task<Comment> DownvoteCommentAsync(int postId, int commentId, string username);
         Task<Comment> AddCommentAsync(int postId, string commentText, string author);
+        Task<Comment> AddReplyAsync(int postId, int commentId, string replyText, string author);
         Task<Post> CreatePostAsync(Post post);
-        Task<bool> GenerateContentAsync(string apiKey);
+        Task<bool> GenerateContentAsync();
         Task<bool> DeleteAllContentAsync();
         
         // Offline mode compatibility
@@ -416,6 +417,83 @@ namespace webapp.Services
                 PostId = postId
             };
         }
+        
+        public async Task<Comment> AddReplyAsync(int postId, int commentId, string replyText, string author)
+        {
+            try
+            {
+                // Create a new Comment object with the required properties
+                var reply = new Comment
+                {
+                    Content = replyText,
+                    Author = author,
+                    CreatedAt = DateTime.UtcNow
+                };
+                
+                Console.WriteLine($"Adding reply to comment {commentId} on post {postId}: {replyText} by {author}");
+                
+                // Set the parent comment ID
+                reply.ParentCommentId = commentId;
+                
+                // Call the API endpoint for adding replies
+                var response = await _httpClient.PostAsJsonAsync($"/api/posts/{postId}/comments/{commentId}/replies", reply);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"API Response for adding reply: {responseContent}");
+                    
+                    var createdReply = JsonSerializer.Deserialize<Comment>(responseContent, _jsonOptions);
+                    if (createdReply != null)
+                    {
+                        // Set TimeAgo if not provided by API
+                        if (string.IsNullOrEmpty(createdReply.TimeAgo))
+                        {
+                            createdReply.TimeAgo = "just now";
+                        }
+                        
+                        // Find the post and comment in the cache and add the reply
+                        var post = _cachedPosts.FirstOrDefault(p => p.Id == postId);
+                        var comment = post?.CommentsList.FirstOrDefault(c => c.Id == commentId);
+                        if (comment != null)
+                        {
+                            comment.Replies.Add(createdReply);
+                        }
+                        return createdReply;
+                    }
+                }
+                else
+                {
+                    Console.Error.WriteLine($"API returned status code: {response.StatusCode} for adding reply");
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Console.Error.WriteLine($"Error content: {errorContent}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error adding reply: {ex.Message}");
+                // Fallback to client-side reply
+                var post = _cachedPosts.FirstOrDefault(p => p.Id == postId);
+                var comment = post?.CommentsList.FirstOrDefault(c => c.Id == commentId);
+                if (comment != null)
+                {
+                    AddReply(comment, replyText);
+                    return comment.Replies.Last();
+                }
+            }
+            
+            // If API call failed or comment not found, create a placeholder reply
+            return new Comment
+            {
+                Id = _nextCommentId++,
+                Content = replyText,
+                Author = author,
+                TimeAgo = "just now",
+                Votes = 1,
+                UserVote = 1,
+                PostId = postId
+            };
+        }
 
         // Offline mode compatibility methods
         public void UpvotePost(Post post)
@@ -524,7 +602,8 @@ namespace webapp.Services
                 Content = replyText,
                 TimeAgo = "just now",
                 Votes = 1,
-                UserVote = 1
+                UserVote = 1,
+                ParentCommentId = parentComment.Id
             };
 
             parentComment.Replies.Add(reply);
@@ -538,15 +617,12 @@ namespace webapp.Services
             return new List<Post>();
         }
         
-        public async Task<bool> GenerateContentAsync(string apiKey)
+        public async Task<bool> GenerateContentAsync()
         {
             try
             {
-                // Create a request message to set the API key in the header
+                // Create a request with empty body
                 var request = new HttpRequestMessage(HttpMethod.Post, "/api/generate-content");
-                request.Headers.Add("x-claude-api-key", apiKey);
-                
-                // Add an empty content to ensure the request has a body
                 request.Content = new StringContent(string.Empty, System.Text.Encoding.UTF8, "application/json");
                 
                 // Send the request

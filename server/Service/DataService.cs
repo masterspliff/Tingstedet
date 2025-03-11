@@ -168,20 +168,108 @@ public class DataService
         }
         return Results.NotFound(new { message = "Post not found" });
     }
+    
+    public object AddReply(int postId, int commentId, Comment reply)
+    {
+        var post = db.Posts.Include(p => p.CommentsList).FirstOrDefault(p => p.Id == postId);
+        var comment = post?.CommentsList.FirstOrDefault(c => c.Id == commentId);
+        
+        if (post != null && comment != null)
+        {
+            reply.PostId = postId;
+            reply.CreatedAt = DateTime.UtcNow;
+            // Set the parent comment ID to establish the relationship
+            reply.ParentCommentId = commentId;
+            
+            // Add the reply to the database
+            db.Comments.Add(reply);
+            db.SaveChanges();
+            
+            return Results.Ok(reply);
+        }
+        
+        return Results.NotFound(new { message = "Post or comment not found" });
+    }
 
     public List<Post> GetPosts()
     {
-        return db.Posts
+        var posts = db.Posts
             .OrderByDescending(p => p.CreatedAt)
             .Include(p => p.CommentsList)
             .ToList();
+            
+        // Organize comments into a hierarchy for each post
+        foreach (var post in posts)
+        {
+            var commentsDictionary = post.CommentsList.ToDictionary(c => c.Id);
+            var rootComments = new List<Comment>();
+            
+            foreach (var comment in post.CommentsList)
+            {
+                if (comment.ParentCommentId.HasValue)
+                {
+                    // This is a reply
+                    if (commentsDictionary.TryGetValue(comment.ParentCommentId.Value, out var parentComment))
+                    {
+                        if (parentComment.Replies == null)
+                        {
+                            parentComment.Replies = new List<Comment>();
+                        }
+                        parentComment.Replies.Add(comment);
+                    }
+                }
+                else
+                {
+                    // This is a root comment
+                    rootComments.Add(comment);
+                }
+            }
+            
+            // Replace the flat list with the root comments only
+            post.CommentsList = rootComments;
+        }
+        
+        return posts;
     }
 
     public Post? GetPostById(int id)
     {
-        return db.Posts
+        var post = db.Posts
             .Include(p => p.CommentsList)
             .FirstOrDefault(p => p.Id == id);
+            
+        if (post != null)
+        {
+            // Organize comments into a hierarchy
+            var commentsDictionary = post.CommentsList.ToDictionary(c => c.Id);
+            var rootComments = new List<Comment>();
+            
+            foreach (var comment in post.CommentsList)
+            {
+                if (comment.ParentCommentId.HasValue)
+                {
+                    // This is a reply
+                    if (commentsDictionary.TryGetValue(comment.ParentCommentId.Value, out var parentComment))
+                    {
+                        if (parentComment.Replies == null)
+                        {
+                            parentComment.Replies = new List<Comment>();
+                        }
+                        parentComment.Replies.Add(comment);
+                    }
+                }
+                else
+                {
+                    // This is a root comment
+                    rootComments.Add(comment);
+                }
+            }
+            
+            // Replace the flat list with the root comments only
+            post.CommentsList = rootComments;
+        }
+        
+        return post;
     }
     
     

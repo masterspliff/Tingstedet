@@ -132,17 +132,18 @@ app.MapPost("/api/posts/{id}/comments", (int id, Comment comment, DataService da
     return Results.Ok(comment);
 });
 
-// Generate content using Claude API
-app.MapPost("/api/generate-content", async ([FromHeader(Name = "x-claude-api-key")] string apiKey, ClaudeService claudeService, IHttpClientFactory httpClientFactory) =>
+// /api/posts/{postId}/comments/{commentId}/replies
+// This adds a reply to a specific comment
+app.MapPost("/api/posts/{postId}/comments/{commentId}/replies", (int postId, int commentId, Comment reply, DataService dataService) =>
 {
-    if (string.IsNullOrEmpty(apiKey))
-    {
-        return Results.BadRequest("API key is required in the x-claude-api-key header");
-    }
-    
-    var apiRequest = new ClaudeService.ClaudeApiRequest { ApiKey = apiKey };
+    return dataService.AddReply(postId, commentId, reply);
+});
+
+// Generate content using Claude API
+app.MapPost("/api/generate-content", async (ClaudeService claudeService, IHttpClientFactory httpClientFactory) =>
+{
     var httpClient = httpClientFactory.CreateClient();
-    return await claudeService.GenerateContentWithClaudeAsync(httpClient, apiRequest);
+    return await claudeService.GenerateContentWithClaudeAsync(httpClient);
 })
 .WithName("GenerateContent")
 .WithOpenApi();

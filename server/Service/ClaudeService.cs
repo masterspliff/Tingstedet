@@ -1,16 +1,21 @@
 using System.Text.Json;
 using core.Models;
 using server.Data;
+using Microsoft.Extensions.Configuration;
 
 namespace server.Service;
 
 public class ClaudeService
 {
     private readonly AppDbContext _db;
+    private readonly IConfiguration _configuration;
+    private readonly string _apiKey;
 
-    public ClaudeService(AppDbContext db)
+    public ClaudeService(AppDbContext db, IConfiguration configuration)
     {
         _db = db;
+        _configuration = configuration;
+        _apiKey = _configuration["Claude:ApiKey"] ?? string.Empty;
     }
 
     public class ClaudeApiRequest
@@ -18,7 +23,7 @@ public class ClaudeService
         public string ApiKey { get; set; } = string.Empty;
     }
 
-    public async Task<object> GenerateContentWithClaudeAsync(HttpClient httpClient, ClaudeApiRequest apiRequest)
+    public async Task<object> GenerateContentWithClaudeAsync(HttpClient httpClient)
     {
         try
         {
@@ -34,10 +39,9 @@ public class ClaudeService
             {
                 model = "claude-3-opus-20240229",
                 max_tokens = 4000,
-                system = "You are helping generate COMPLETELY RANDOM and VARIED content for a community forum. " +
-                         "Generate 3 posts with titles, content, author names, and 1-2 comments for each post. " +
-                         "Make sure the topics are UNIQUE, VARIED and NOT about 'neighborhood recommendations', 'sunset photos', or 'community cleanups'. " +
-                         "Instead, create content about entirely different topics like hobbies, technology questions, gardening tips, book discussions, local sports, etc. " +
+                system = "You are helping generate COMPLETELY RANDOM and VARIED content for random community forums. " +
+                         "Generate 3 posts with titles, content, author names, and 2-3 comments for each post. " +
+                         "Create content about  different  like hobbies, technology questions, gardening tips, book discussions, local sports, etc. " +
                          "IMPORTANT: Your response MUST be VALID JSON with the following structure and nothing else: " +
                          "{ \"posts\": [ { \"title\": \"...\", \"content\": \"...\", \"author\": \"...\"," +
                          " \"comments\": [ { \"content\": \"...\", \"author\": \"...\" } ] } ] }" +
@@ -48,7 +52,7 @@ public class ClaudeService
                     {
                         role = "user",
                         content =
-                            "Generate COMPLETELY RANDOM community forum posts with UNIQUE topics. Avoid repeating common themes like 'neighborhood recommendations', 'sunset photos', or 'community cleanups'. Create content about entirely different topics instead."
+                            "Generate COMPLETELY RANDOM community forum posts with UNIQUE topics."
                     }
                 }
             };
@@ -56,14 +60,14 @@ public class ClaudeService
             // Set up the API request
             var httpRequest = new HttpRequestMessage(HttpMethod.Post, requestUri);
             // The current API uses different headers
-            httpRequest.Headers.Add("x-api-key", apiRequest.ApiKey);
+            httpRequest.Headers.Add("x-api-key", _apiKey);
             httpRequest.Headers.Add("anthropic-version", "2023-06-01");
             // Add additional header that may be required by newer Claude API
             httpRequest.Headers.Add("accept", "application/json");
             httpRequest.Content = JsonContent.Create(requestPayload);
 
             // Log the request for debugging
-            Console.WriteLine($"Sending Claude API request with API key: {apiRequest.ApiKey.Substring(0, 5)}...");
+            Console.WriteLine($"Sending Claude API request with API key: {_apiKey.Substring(0, 5)}...");
             Console.WriteLine($"Request payload: {JsonSerializer.Serialize(requestPayload)}");
             Console.WriteLine($"API URI: {requestUri}");
 

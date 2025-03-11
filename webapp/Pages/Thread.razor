@@ -170,19 +170,72 @@
         }
     }
     
-    private void HandleAddReply((Comment ParentComment, string ReplyText) data)
+    private async Task HandleAddReply((Comment ParentComment, string ReplyText) data)
     {
         if (!string.IsNullOrWhiteSpace(data.ReplyText))
         {
             // Use the current user's name if available, otherwise use a default
             string author = string.IsNullOrWhiteSpace(_commentAuthor) ? "User" : _commentAuthor;
             
-            // Add the reply to the parent comment
-            PostService.AddReply(data.ParentComment, data.ReplyText);
+            try
+            {
+                // Call server API to add the reply
+                var newReply = await PostService.AddReplyAsync(_post.Id, data.ParentComment.Id, data.ReplyText, author);
+                
+                // If successful, update the UI with the new reply
+                if (newReply != null)
+                {
+                    // Find the parent comment in the post's comments list
+                    var parentComment = FindCommentById(_post.CommentsList, data.ParentComment.Id);
+                    
+                    if (parentComment != null)
+                    {
+                        // Initialize Replies collection if it's null
+                        if (parentComment.Replies == null)
+                        {
+                            parentComment.Replies = new List<Comment>();
+                        }
+                        
+                        // Add the new reply to the parent comment's Replies collection
+                        parentComment.Replies.Add(newReply);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error adding reply: {ex.Message}");
+                
+                // Fallback to client-side
+                PostService.AddReply(data.ParentComment, data.ReplyText);
+            }
             
             // Force UI refresh
             StateHasChanged();
         }
+    }
+    
+    // Helper method to find a comment by ID in a nested comment structure
+    private Comment? FindCommentById(List<Comment> comments, int commentId)
+    {
+        foreach (var comment in comments)
+        {
+            if (comment.Id == commentId)
+            {
+                return comment;
+            }
+            
+            // Check replies recursively
+            if (comment.Replies != null && comment.Replies.Any())
+            {
+                var foundInReplies = FindCommentById(comment.Replies, commentId);
+                if (foundInReplies != null)
+                {
+                    return foundInReplies;
+                }
+            }
+        }
+        
+        return null;
     }
     
     // Nested components for better organization

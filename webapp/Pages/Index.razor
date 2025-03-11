@@ -180,23 +180,13 @@
     
     private async Task GenerateContent()
     {
-        // In a real app, you would get this from a secure source
-        // For this demo, we'll prompt the user for their API key
-        var apiKey = await JsRuntime.InvokeAsync<string>("prompt", "Enter your Claude API key:");
-        
-        if (string.IsNullOrWhiteSpace(apiKey))
-        {
-            await JsRuntime.InvokeVoidAsync("alert", "API key is required.");
-            return;
-        }
-        
         // Show loading indicator
         _contentLoaded = false;
         StateHasChanged();
         
         try
         {
-            var success = await PostService.GenerateContentAsync(apiKey);
+            var success = await PostService.GenerateContentAsync();
             
             if (success)
             {
