@@ -15,7 +15,8 @@ builder.Services.AddCors(options =>
     {
         builder.AllowAnyOrigin()
              .AllowAnyHeader()
-             .AllowAnyMethod();
+             .AllowAnyMethod()
+             .WithExposedHeaders("Content-Disposition"); // Needed for file downloads
     });
 });
 
@@ -30,9 +31,29 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =
     options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
 });
 
+// Get connection string from configuration and replace environment variables
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+connectionString = ReplaceEnvironmentVariables(connectionString);
+
 // Add DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(connectionString));
+
+// Helper method to replace environment variables in connection string
+string ReplaceEnvironmentVariables(string input)
+{
+    if (string.IsNullOrEmpty(input)) return input;
+    
+    // Replace ${VAR_NAME} with environment variable value
+    var result = System.Text.RegularExpressions.Regex.Replace(input, @"\${([^}]+)}", match =>
+    {
+        var envVarName = match.Groups[1].Value;
+        var envVarValue = Environment.GetEnvironmentVariable(envVarName);
+        return envVarValue ?? match.Value; // Return original if env var not found
+    });
+    
+    return result;
+}
 
 // Add HttpClient for Claude API
 builder.Services.AddHttpClient();
@@ -50,6 +71,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
     app.UseDeveloperExceptionPage();
 }
+
 
 app.UseHttpsRedirection();
 app.UseCors(allowSomeStuff);
@@ -146,6 +168,15 @@ app.MapPost("/api/generate-content", async (ClaudeService claudeService, IHttpCl
     return await claudeService.GenerateContentWithClaudeAsync(httpClient);
 })
 .WithName("GenerateContent")
+.WithOpenApi();
+
+// Generate content with user-provided API key
+app.MapPost("/api/generate-content-with-key", async ([FromBody] ClaudeService.ClaudeApiRequest request, ClaudeService claudeService, IHttpClientFactory httpClientFactory) =>
+{
+    var httpClient = httpClientFactory.CreateClient();
+    return await claudeService.GenerateContentWithClaudeAsync(httpClient, request.ApiKey);
+})
+.WithName("GenerateContentWithKey")
 .WithOpenApi();
 
 // Delete all content
