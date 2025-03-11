@@ -9,9 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Azure Login
-        uses: Azure/login@v2.2.0
-        
       - uses: actions/checkout@v2
 
       - name: Setup .NET
