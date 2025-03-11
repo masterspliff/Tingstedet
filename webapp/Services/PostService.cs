@@ -16,6 +16,8 @@ namespace webapp.Services
         Task<Comment> DownvoteCommentAsync(int postId, int commentId, string username);
         Task<Comment> AddCommentAsync(int postId, string commentText, string author);
         Task<Post> CreatePostAsync(Post post);
+        Task<bool> GenerateContentAsync(string apiKey);
+        Task<bool> DeleteAllContentAsync();
         
         // Offline mode compatibility
         void UpvotePost(Post post);
@@ -73,11 +75,7 @@ namespace webapp.Services
             catch (Exception ex)
             {
                 Console.Error.WriteLine($"Error fetching posts: {ex.Message}");
-                // If API call fails, return cached posts or empty list
-                if (_cachedPosts.Count == 0)
-                {
-                    return GenerateFallbackPosts();
-                }
+                // If API call fails, return cached posts only
                 return _cachedPosts;
             }
             
@@ -534,65 +532,65 @@ namespace webapp.Services
 
         private List<Post> GenerateFallbackPosts()
         {
-            var posts = new List<Post>
+            // Return empty list instead of generating fallback data
+            // All data is now seeded on the server side
+            Console.WriteLine("Unable to connect to server. Please try again later.");
+            return new List<Post>();
+        }
+        
+        public async Task<bool> GenerateContentAsync(string apiKey)
+        {
+            try
             {
-                new Post
+                // Create a request message to set the API key in the header
+                var request = new HttpRequestMessage(HttpMethod.Post, "/api/generate-content");
+                request.Headers.Add("x-claude-api-key", apiKey);
+                
+                // Add an empty content to ensure the request has a body
+                request.Content = new StringContent(string.Empty, System.Text.Encoding.UTF8, "application/json");
+                
+                // Send the request
+                var response = await _httpClient.SendAsync(request);
+                
+                // Log any error response for debugging
+                if (!response.IsSuccessStatusCode)
                 {
-                    Id = 1,
-                    Title = "Just moved to the neighborhood, any recommendations?",
-                    Content = "Hi everyone! I just moved to the area and I'm looking for recommendations on local restaurants, parks, and community events. What are your favorite spots?",
-                    Author = "NewNeighbor",
-                    TimeAgo = "3 hours ago",
-                    Votes = 42,
-                    UserVote = 0
-                },
-                new Post
-                {
-                    Id = 2,
-                    Title = "Beautiful sunset at the local park yesterday",
-                    Content = "Caught this amazing view while walking my dog. Thought I'd share with the community!",
-                    Author = "NatureLover",
-                    TimeAgo = "8 hours ago",
-                    Votes = 128,
-                    Url = "https://images.unsplash.com/photo-1495616811223-4d98c6e9c869",
-                    UserVote = 0
-                },
-                new Post
-                {
-                    Id = 3,
-                    Title = "Community cleanup this weekend - volunteers needed!",
-                    Content = "We're organizing a community cleanup this Saturday from 10am to 2pm. Meet at the central square. Gloves and bags will be provided. Hope to see many of you there!",
-                    Author = "CommunityOrganizer",
-                    TimeAgo = "1 day ago",
-                    Votes = 89,
-                    UserVote = 0
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Console.Error.WriteLine($"Server error: {response.StatusCode}");
+                    Console.Error.WriteLine($"Error details: {errorContent}");
                 }
-            };
-
-            // Add comments to the first post
-            posts[0].CommentsList = new List<Comment>
+                
+                response.EnsureSuccessStatusCode();
+                
+                // If successful, refresh the posts list
+                await GetPostsAsync(); // Refresh the cache
+                
+                return true;
+            }
+            catch (Exception ex)
             {
-                new Comment
-                {
-                    Id = _nextCommentId++,
-                    Author = "LocalFoodie",
-                    Content = "You should definitely try 'The Green Table' on Oak Street. They have amazing farm-to-table options and great outdoor seating!",
-                    TimeAgo = "2 hours ago",
-                    Votes = 15,
-                    UserVote = 0,
-                },
-                new Comment
-                {
-                    Id = _nextCommentId++,
-                    Author = "ParkRanger",
-                    Content = "Riverside Park is beautiful this time of year. They have walking trails, picnic areas, and a dog park if you have a furry friend!",
-                    TimeAgo = "2 hours ago",
-                    Votes = 8,
-                    UserVote = 0
-                }
-            };
-
-            return posts;
+                Console.Error.WriteLine($"Error generating content: {ex.Message}");
+                return false;
+            }
+        }
+        
+        public async Task<bool> DeleteAllContentAsync()
+        {
+            try
+            {
+                var response = await _httpClient.DeleteAsync("/api/delete-all-content");
+                response.EnsureSuccessStatusCode();
+                
+                // Clear the cache
+                _cachedPosts.Clear();
+                
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error deleting content: {ex.Message}");
+                return false;
+            }
         }
     }
 }

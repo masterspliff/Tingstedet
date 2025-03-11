@@ -25,55 +25,63 @@ public class DataService
             // Create sample posts with comments
             var post1 = new Post
             {
-                Title = "Welcome to Tingstedet!",
-                Content = "This is a place for discussions and sharing ideas.",
-                Author = "Admin",
-                CreatedAt = DateTime.UtcNow,
-                Votes = 5
+                Title = "Just moved to the neighborhood, any recommendations?",
+                Content = "Hi everyone! I just moved to the area and I'm looking for recommendations on local restaurants, parks, and community events. What are your favorite spots?",
+                Author = "NewNeighbor",
+                CreatedAt = DateTime.UtcNow.AddHours(-3),
+                Votes = 42
             };
             
             var post2 = new Post
             {
-                Title = "How to use this forum",
-                Content = "You can post, comment, and vote on content you find interesting.",
-                Author = "Moderator",
-                CreatedAt = DateTime.UtcNow.AddHours(-2),
-                Votes = 3
+                Title = "Beautiful sunset at the local park yesterday",
+                Content = "Caught this amazing view while walking my dog. Thought I'd share with the community!",
+                Author = "NatureLover",
+                CreatedAt = DateTime.UtcNow.AddHours(-8),
+                Votes = 128,
+                Url = "https://images.unsplash.com/photo-1495616811223-4d98c6e9c869"
             };
             
             var post3 = new Post
             {
-                Title = "Introducing new features",
-                Content = "We've added voting and commenting features to make discussions more interactive.",
-                Author = "Developer",
+                Title = "Community cleanup this weekend - volunteers needed!",
+                Content = "We're organizing a community cleanup this Saturday from 10am to 2pm. Meet at the central square. Gloves and bags will be provided. Hope to see many of you there!",
+                Author = "CommunityOrganizer",
                 CreatedAt = DateTime.UtcNow.AddDays(-1),
-                Votes = 7,
-                Url = "https://example.com/features"
+                Votes = 89
             };
             
             // Add comments to posts
             post1.CommentsList.Add(new Comment
             {
-                Content = "Great to be here!",
-                Author = "User1",
-                CreatedAt = DateTime.UtcNow.AddMinutes(-30),
-                Votes = 2
+                Content = "You should definitely try 'The Green Table' on Oak Street. They have amazing farm-to-table options and great outdoor seating!",
+                Author = "LocalFoodie",
+                CreatedAt = DateTime.UtcNow.AddHours(-2),
+                Votes = 15
+            });
+            
+            post1.CommentsList.Add(new Comment
+            {
+                Content = "Riverside Park is beautiful this time of year. They have walking trails, picnic areas, and a dog park if you have a furry friend!",
+                Author = "ParkRanger",
+                CreatedAt = DateTime.UtcNow.AddHours(-2),
+                Votes = 8
             });
             
             post2.CommentsList.Add(new Comment
             {
-                Content = "Thanks for the explanation!",
-                Author = "User2",
-                CreatedAt = DateTime.UtcNow.AddMinutes(-45),
-                Votes = 1
+                Content = "Wow, that's absolutely stunning! Where exactly in the park was this taken?",
+                Author = "PhotoEnthusiast",
+                CreatedAt = DateTime.UtcNow.AddHours(-6),
+                Votes = 12
             });
             
             post3.CommentsList.Add(new Comment
             {
-                Content = "Looking forward to trying these new features!",
-                Author = "User3",
-                CreatedAt = DateTime.UtcNow.AddHours(-3),
-                Votes = 4
+                Content = "Count me in! I'll bring some extra trash bags just in case we need them.",
+                Author = "EcoWarrior",
+                CreatedAt = DateTime.UtcNow.AddHours(-12),
+                Votes = 18
             });
             
             // Add posts to database
@@ -174,5 +182,17 @@ public class DataService
         return db.Posts
             .Include(p => p.CommentsList)
             .FirstOrDefault(p => p.Id == id);
+    }
+    
+    
+    public object DeleteAllContent()
+    {
+        // Remove all votes, comments, and posts from the database
+        db.Votes.RemoveRange(db.Votes);
+        db.Comments.RemoveRange(db.Comments);
+        db.Posts.RemoveRange(db.Posts);
+        db.SaveChanges();
+        
+        return Results.Ok(new { message = "All content deleted successfully" });
     }
 }

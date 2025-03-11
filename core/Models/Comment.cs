@@ -5,20 +5,17 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace core.Models
 {
-    public class Post
+    public class Comment
     {
         [Key]
         public int Id { get; set; }
         
         [Required]
-        [MaxLength(200)]
-        public string Title { get; set; } = "";
-        
-        public string Content { get; set; } = "";
-        
-        [Required]
         [MaxLength(50)]
         public string Author { get; set; } = "";
+        
+        [Required]
+        public string Content { get; set; } = "";
         
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         
@@ -27,15 +24,16 @@ namespace core.Models
         
         public int Votes { get; set; }
         
-        [NotMapped]
-        public int Comments { get => CommentsList?.Count ?? 0; set { } }
+        [ForeignKey("PostId")]
+        public int PostId { get; set; }
         
-        public string? Url { get; set; }
+        public Post Post { get; set; }
         
         [NotMapped]
         public int UserVote { get; set; } // 1 for upvote, -1 for downvote, 0 for no vote
         
-        public List<Comment> CommentsList { get; set; } = new List<Comment>();
+        [NotMapped]
+        public List<Comment> Replies { get; set; } = new List<Comment>();
         
         public List<Vote> Votes_Relations { get; set; } = new List<Vote>();
     }
