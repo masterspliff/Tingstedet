@@ -19,7 +19,8 @@ builder.Services.AddCors(options =>
                 "http://localhost:5008",
                 "https://localhost:7295")
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .SetIsOriginAllowedToAllowWildcardSubdomains();
     });
 });
 
