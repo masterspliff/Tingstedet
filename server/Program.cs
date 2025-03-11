@@ -154,6 +154,5 @@ app.MapDelete("/api/delete-all-content", (DataService dataService) =>
     return dataService.DeleteAllContent();
 });
 
-app.MapGet("/", () => "Hello World!");
 
 app.Run();
