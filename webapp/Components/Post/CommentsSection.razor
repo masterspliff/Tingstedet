@@ -1,0 +1,87 @@
+@using core.Models
+
+<div class="comments-section">
+    <div class="d-flex align-items-center mb-3">
+        <h5 class="mb-0 me-2">Comments (@CommentsCount)</h5>
+        <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                Sort By: @_selectedSort
+            </button>
+            <ul class="dropdown-menu">
+                @foreach (var sortOption in _sortOptions)
+                {
+                    <li><button class="dropdown-item" @onclick="() => SetSortOption(sortOption)">@sortOption</button></li>
+                }
+            </ul>
+        </div>
+    </div>
+    
+    @if (Comments.Any())
+    {
+        @foreach (var comment in GetSortedComments())
+        {
+            <CommentCard 
+                Comment="comment" 
+                OnUpvote="(c) => OnUpvote.InvokeAsync(c)" 
+                OnDownvote="(c) => OnDownvote.InvokeAsync(c)"
+                OnAddReply="(data) => OnAddReply.InvokeAsync(data)">
+                <HeaderTemplate>
+                    <div class="d-flex align-items-center mb-1">
+                        <small class="fw-bold me-2">@context.Author</small>
+                        <small class="text-muted">@context.TimeAgo</small>
+                        @if (context.Author == PostAuthor)
+                        {
+                            <span class="badge bg-primary ms-2">Author</span>
+                        }
+                    </div>
+                </HeaderTemplate>
+            </CommentCard>
+        }
+    }
+    else
+    {
+        <div class="text-center py-4">
+            <p class="text-muted">No comments yet. Be the first to comment!</p>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public List<Comment> Comments { get; set; } = new();
+    
+    [Parameter]
+    public int CommentsCount { get; set; }
+    
+    [Parameter]
+    public string PostAuthor { get; set; } = "";
+    
+    [Parameter]
+    public EventCallback<Comment> OnUpvote { get; set; }
+    
+    [Parameter]
+    public EventCallback<Comment> OnDownvote { get; set; }
+    
+    [Parameter]
+    public EventCallback<(Comment ParentComment, string ReplyText)> OnAddReply { get; set; }
+    
+    private string _selectedSort = "Best";
+    private List<string> _sortOptions = new() { "Best", "Top", "New", "Controversial", "Old" };
+    
+    private List<Comment> GetSortedComments()
+    {
+        return _selectedSort switch
+        {
+            "Top" => Comments.OrderByDescending(c => c.Votes).ToList(),
+            "New" => Comments.OrderByDescending(c => c.CreatedAt).ToList(),
+            "Controversial" => Comments.OrderBy(c => Math.Abs(c.Votes)).ToList(),
+            "Old" => Comments.OrderBy(c => c.CreatedAt).ToList(),
+            _ => Comments.OrderByDescending(c => c.Votes).ThenByDescending(c => c.CreatedAt).ToList() // "Best" is default
+        };
+    }
+    
+    private void SetSortOption(string option)
+    {
+        _selectedSort = option;
+    }
+}

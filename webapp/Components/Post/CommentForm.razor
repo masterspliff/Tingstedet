@@ -1,0 +1,72 @@
+@using core.Models
+
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="mb-3">
+            <label for="author" class="form-label">Your Name</label>
+            <input type="text" class="form-control" id="author" @bind="_commentAuthor">
+            @if (_authorError)
+            {
+                <div class="text-danger mt-1">Name is required</div>
+            }
+        </div>
+        
+        <textarea class="form-control mb-3" rows="4" 
+                  placeholder="What are your thoughts?" @bind="_newCommentText"></textarea>
+        @if (_commentTextError)
+        {
+            <div class="text-danger mb-2">Comment text is required</div>
+        }
+        
+        <div class="d-flex justify-content-end">
+            <button class="btn btn-primary" @onclick="SubmitComment">
+                @if (_isSubmitting)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <span class="ms-1">Submitting...</span>
+                }
+                else
+                {
+                    <span>Comment</span>
+                }
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public EventCallback<(string Author, string CommentText)> OnSubmit { get; set; }
+    
+    private string _newCommentText = "";
+    private string _commentAuthor = "";
+    private bool _isSubmitting = false;
+    private bool _commentTextError = false;
+    private bool _authorError = false;
+    
+    public string Author => _commentAuthor;
+    
+    private async Task SubmitComment()
+    {
+        // Validate
+        _authorError = string.IsNullOrWhiteSpace(_commentAuthor);
+        _commentTextError = string.IsNullOrWhiteSpace(_newCommentText);
+        
+        if (_authorError || _commentTextError)
+        {
+            return;
+        }
+        
+        _isSubmitting = true;
+        
+        try
+        {
+            await OnSubmit.InvokeAsync((_commentAuthor, _newCommentText));
+            _newCommentText = ""; // Clear comment text after successful submission
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}

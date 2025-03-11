@@ -5,7 +5,7 @@
 @using webapp.Components.Sidebar
 @inject IPostService PostService
 @inject NavigationManager NavigationManager
-@inject IJSRuntime JSRuntime
+@inject IJSRuntime JsRuntime
 
 <div class="container mt-4">
     <div class="row">
@@ -182,11 +182,11 @@
     {
         // In a real app, you would get this from a secure source
         // For this demo, we'll prompt the user for their API key
-        var apiKey = await JSRuntime.InvokeAsync<string>("prompt", "Enter your Claude API key:");
+        var apiKey = await JsRuntime.InvokeAsync<string>("prompt", "Enter your Claude API key:");
         
         if (string.IsNullOrWhiteSpace(apiKey))
         {
-            await JSRuntime.InvokeVoidAsync("alert", "API key is required.");
+            await JsRuntime.InvokeVoidAsync("alert", "API key is required.");
             return;
         }
         
@@ -201,17 +201,17 @@
             if (success)
             {
                 await LoadPosts();
-                await JSRuntime.InvokeVoidAsync("alert", "New content generated successfully! (Existing content was preserved)");
+                await JsRuntime.InvokeVoidAsync("alert", "New content generated successfully! (Existing content was preserved)");
             }
             else
             {
-                await JSRuntime.InvokeVoidAsync("alert", "Failed to generate content. Check the console for errors.");
+                await JsRuntime.InvokeVoidAsync("alert", "Failed to generate content. Check the console for errors.");
             }
         }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"Error generating content: {ex.Message}");
-            await JSRuntime.InvokeVoidAsync("alert", $"Error: {ex.Message}");
+            await JsRuntime.InvokeVoidAsync("alert", $"Error: {ex.Message}");
         }
         finally
         {
@@ -222,7 +222,7 @@
     
     private async Task DeleteAllContent()
     {
-        if (await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete ALL content? This cannot be undone."))
+        if (await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete ALL content? This cannot be undone."))
         {
             // Show loading indicator
             _contentLoaded = false;
@@ -233,11 +233,11 @@
             if (success)
             {
                 await LoadPosts();
-                await JSRuntime.InvokeVoidAsync("alert", "All content deleted successfully!");
+                await JsRuntime.InvokeVoidAsync("alert", "All content deleted successfully!");
             }
             else
             {
-                await JSRuntime.InvokeVoidAsync("alert", "Failed to delete content. Check the console for errors.");
+                await JsRuntime.InvokeVoidAsync("alert", "Failed to delete content. Check the console for errors.");
                 _contentLoaded = true;
                 StateHasChanged();
             }
