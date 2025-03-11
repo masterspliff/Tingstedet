@@ -4,11 +4,6 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-
-permissions:
-  id-token: write
-  contents: read
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -21,6 +16,8 @@ jobs:
         with:
           dotnet-version: '9.0.x'
           
+
+
       # Build and publish server
       - name: Clean Server
         run: dotnet clean ./server.sln
@@ -47,26 +44,20 @@ jobs:
       - name: Publish Webapp
         run: dotnet publish ./webapp.sln -c Release -o ${{env.DOTNET_ROOT}}/webapp
       
-      # Azure Login with OIDC
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      
       # Deploy Server (Development)
       - name: Deploy Server to Azure Web App (Development)
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/dev'
         uses: azure/webapps-deploy@v2
         with:
           app-name: 'tingstedet-api'
+          publish-profile: ${{ secrets.AZURE_SERVER_PUBLISH_PROFILE_API_DEV}}
           package: ${{env.DOTNET_ROOT}}/server
       
-      # Deploy Blazor App (Development)
+      # Deploy Blazor App (Development) kom nu
       - name: Deploy Blazor to Azure Web App (Development)
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/dev'
         uses: azure/webapps-deploy@v2
         with:
           app-name: 'tingstedet'
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_APP_DEV}}
           package: ${{env.DOTNET_ROOT}}/webapp
