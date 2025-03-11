@@ -44,8 +44,10 @@ namespace webapp.Services
         public PostService(HttpClient httpClient)
         {
             _httpClient = httpClient;
-            _httpClient.BaseAddress = new Uri("http://localhost:5027");
+            // Don't override the BaseAddress - it's already set in Program.cs
             _cachedPosts = new List<Post>();
+            
+            Console.WriteLine($"Using API base address: {_httpClient.BaseAddress}");
         }
 
         public async Task<List<Post>> GetPostsAsync()

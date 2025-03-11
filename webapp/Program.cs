@@ -7,15 +7,25 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-// Configure HttpClient for API
-builder.Services.AddScoped(sp => 
+// Load configuration from appsettings.json files
+builder.Configuration.AddJsonFile("appsettings.json", optional: true);
+builder.Configuration.AddJsonFile($"appsettings.{builder.HostEnvironment.Environment}.json", optional: true);
+
+// Listening on the server port (5027)
+builder.Services.AddScoped(sp =>
 {
-    // In development, we're using the local API
-    var apiBaseAddress = builder.HostEnvironment.IsDevelopment() 
-        ? "https://localhost:7272" // Server API address
-        : builder.HostEnvironment.BaseAddress;
-        
-    return new HttpClient { BaseAddress = new Uri(apiBaseAddress) };
+    string baseAddress;
+    if (builder.HostEnvironment.IsDevelopment())
+    {
+        baseAddress = "http://localhost:5027/";
+    }
+    else
+    {
+        baseAddress = "https://tingstedet-api-ddbbcxhhc7ebhzcj.swedencentral-01.azurewebsites.net/"
+                      ?? throw new InvalidOperationException("API_BASE_URL environment variable not configured");
+    }
+    Console.WriteLine($"API_BASE_URL: {baseAddress}");
+    return new HttpClient { BaseAddress = new Uri(baseAddress) };
 });
 
 // Register services

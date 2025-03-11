@@ -15,7 +15,16 @@ public class ClaudeService
     {
         _db = db;
         _configuration = configuration;
-        _apiKey = _configuration["Claude:ApiKey"] ?? string.Empty;
+        
+        // First try to get from environment variable, then fall back to configuration
+        _apiKey = Environment.GetEnvironmentVariable("CLAUDE_API_KEY") ?? 
+                 _configuration["Claude:ApiKey"] ?? 
+                 string.Empty;
+        
+        if (string.IsNullOrEmpty(_apiKey) || _apiKey == "CLAUDE_API_KEY_PLACEHOLDER")
+        {
+            Console.WriteLine("WARNING: No valid Claude API key found!");
+        }
     }
 
     public class ClaudeApiRequest
@@ -23,10 +32,22 @@ public class ClaudeService
         public string ApiKey { get; set; } = string.Empty;
     }
 
-    public async Task<object> GenerateContentWithClaudeAsync(HttpClient httpClient)
+    public async Task<object> GenerateContentWithClaudeAsync(HttpClient httpClient, string? userProvidedApiKey = null)
     {
         try
         {
+            // If user provided an API key through the endpoint, use that instead
+            string apiKeyToUse = !string.IsNullOrEmpty(userProvidedApiKey) ? userProvidedApiKey : _apiKey;
+            
+            // Check if we have a valid API key
+            if (string.IsNullOrEmpty(apiKeyToUse) || apiKeyToUse == "CLAUDE_API_KEY_PLACEHOLDER")
+            {
+                return Results.BadRequest(new { 
+                    message = "No valid Claude API key found. Please provide a valid API key.",
+                    needsApiKey = true
+                });
+            }
+            
             // We no longer delete existing content
             // This allows users to keep their existing posts and comments
             Console.WriteLine("Generating new content without deleting existing data");
@@ -60,14 +81,17 @@ public class ClaudeService
             // Set up the API request
             var httpRequest = new HttpRequestMessage(HttpMethod.Post, requestUri);
             // The current API uses different headers
-            httpRequest.Headers.Add("x-api-key", _apiKey);
+            httpRequest.Headers.Add("x-api-key", apiKeyToUse);
             httpRequest.Headers.Add("anthropic-version", "2023-06-01");
             // Add additional header that may be required by newer Claude API
             httpRequest.Headers.Add("accept", "application/json");
             httpRequest.Content = JsonContent.Create(requestPayload);
 
-            // Log the request for debugging
-            Console.WriteLine($"Sending Claude API request with API key: {_apiKey.Substring(0, 5)}...");
+            // Log the request for debugging (mask most of the API key)
+            string maskedKey = apiKeyToUse.Length > 8 
+                ? apiKeyToUse.Substring(0, 5) + "..." 
+                : "[invalid key]";
+            Console.WriteLine($"Sending Claude API request with API key: {maskedKey}");
             Console.WriteLine($"Request payload: {JsonSerializer.Serialize(requestPayload)}");
             Console.WriteLine($"API URI: {requestUri}");
 
@@ -80,8 +104,21 @@ public class ClaudeService
                 var errorContent = await response.Content.ReadAsStringAsync();
                 Console.WriteLine($"Claude API Error - Status Code: {response.StatusCode}");
                 Console.WriteLine($"Error Response: {errorContent}");
-
-                // Instead of failing, let's provide fallback content
+                
+                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                {
+                    return Results.BadRequest(new { 
+                        message = "Invalid API key or unauthorized. Please provide a valid Claude API key.",
+                        needsApiKey = true,
+                        error = errorContent
+                    });
+                }
+                
+                // For other errors
+                return Results.BadRequest(new {
+                    message = $"Claude API Error: {response.StatusCode}",
+                    error = errorContent
+                });
             }
 
             response.EnsureSuccessStatusCode();
