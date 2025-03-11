@@ -46,7 +46,7 @@ jobs:
       
       # Deploy Server (Development)
       - name: Deploy Server to Azure Web App (Development)
-        if: github.ref == 'refs/heads/dev'
+        if: github.ref == 'refs/heads/main'
         uses: azure/webapps-deploy@v2
         with:
           app-name: 'tingstedet-api'
@@ -55,7 +55,7 @@ jobs:
       
       # Deploy Blazor App (Development) kom nu
       - name: Deploy Blazor to Azure Web App (Development)
-        if: github.ref == 'refs/heads/dev'
+        if: github.ref == 'refs/heads/main'
         uses: azure/webapps-deploy@v2
         with:
           app-name: 'tingstedet'
