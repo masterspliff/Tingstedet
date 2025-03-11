@@ -1,0 +1,29 @@
+<PlaceholderContainer Animation="PlaceholderAnimation.Glow">
+    <PostCardPlaceholder ContentLines="4" />
+    
+    <div class="card mb-3">
+        <div class="card-body">
+            <Placeholder Width="PlaceholderWidth.Col6" Size="PlaceholderSize.Small" />
+            <Placeholder Width="PlaceholderWidth.Col12" Class="mt-2" />
+            <div class="d-flex justify-content-end mt-2">
+                <Placeholder Width="PlaceholderWidth.Col2" Size="PlaceholderSize.Small" />
+            </div>
+        </div>
+    </div>
+    
+    @for (int i = 0; i < 2; i++)
+    {
+        <div class="comment mb-3">
+            <div class="d-flex">
+                <div class="me-2" style="width: 30px;">
+                    <Placeholder Width="PlaceholderWidth.Col12" Size="PlaceholderSize.Small" />
+                </div>
+                <div class="flex-grow-1">
+                    <Placeholder Width="PlaceholderWidth.Col3" Size="PlaceholderSize.Small" />
+                    <Placeholder Width="PlaceholderWidth.Col12" Class="mt-1" />
+                    <Placeholder Width="PlaceholderWidth.Col10" Class="mt-1" />
+                </div>
+            </div>
+        </div>
+    }
+</PlaceholderContainer>

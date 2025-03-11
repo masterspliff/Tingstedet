@@ -1,18 +1,17 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Http.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Mvc;
 using core.Models;
 using server.Data;
-using server.Utils;
 using server.Service;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add CORS
-var AllowSomeStuff = "_AllowSomeStuff";
+var allowSomeStuff = "_AllowSomeStuff";
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy(name: AllowSomeStuff, builder =>
+    options.AddPolicy(name: allowSomeStuff, builder =>
     {
         builder.AllowAnyOrigin()
              .AllowAnyHeader()
@@ -25,7 +24,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // Configure JSON serialization
-builder.Services.Configure<JsonOptions>(options =>
+builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
 {
     options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
     options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
@@ -35,8 +34,12 @@ builder.Services.Configure<JsonOptions>(options =>
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Register DataService
+// Add HttpClient for Claude API
+builder.Services.AddHttpClient();
+
+// Register Services
 builder.Services.AddScoped<DataService>();
+builder.Services.AddScoped<ClaudeService>();
 
 var app = builder.Build();
 
@@ -49,14 +52,17 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors(AllowSomeStuff);
+app.UseCors(allowSomeStuff);
+
+
+// IF NEEDED AND NOT USING CLAUDE AI **********************************************************************************************
 
 // Seed data
-using (var scope = app.Services.CreateScope())
-{
-    var dataService = scope.ServiceProvider.GetRequiredService<DataService>();
-    dataService.SeedData(); // Fills database with data if empty, otherwise does nothing
-}
+//using (var scope = app.Services.CreateScope())
+//{
+//    var dataService = scope.ServiceProvider.GetRequiredService<DataService>();
+//    dataService.SeedData(); // Fills database with data if empty, otherwise does nothing
+//}
 
 // Middleware that runs before each request. Sets ContentType for all responses to "JSON".
 app.Use(async (context, next) =>
@@ -124,6 +130,28 @@ app.MapPost("/api/posts/{id}/comments", (int id, Comment comment, DataService da
 {
     dataService.AddComment(id, comment);
     return Results.Ok(comment);
+});
+
+// /api/posts/{postId}/comments/{commentId}/replies
+// This adds a reply to a specific comment
+app.MapPost("/api/posts/{postId}/comments/{commentId}/replies", (int postId, int commentId, Comment reply, DataService dataService) =>
+{
+    return dataService.AddReply(postId, commentId, reply);
+});
+
+// Generate content using Claude API
+app.MapPost("/api/generate-content", async (ClaudeService claudeService, IHttpClientFactory httpClientFactory) =>
+{
+    var httpClient = httpClientFactory.CreateClient();
+    return await claudeService.GenerateContentWithClaudeAsync(httpClient);
+})
+.WithName("GenerateContent")
+.WithOpenApi();
+
+// Delete all content
+app.MapDelete("/api/delete-all-content", (DataService dataService) =>
+{
+    return dataService.DeleteAllContent();
 });
 
 app.MapGet("/", () => "Hello World!");

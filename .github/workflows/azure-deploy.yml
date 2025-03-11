@@ -1,0 +1,63 @@
+name: Deploy to Azure
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.x'
+      
+      
+      
+      # Build and publish server
+      - name: Clean Server
+        run: dotnet clean ./server.sln
+
+      - name: Restore Server dependencies
+        run: dotnet restore ./server.sln
+
+      - name: Build Server
+        run: dotnet build ./server.sln --configuration Release --no-restore
+
+      - name: Publish Server
+        run: dotnet publish ./server.sln -c Release -o ${{env.DOTNET_ROOT}}/server
+
+      # Build and publish webapp
+      - name: Clean Webapp
+        run: dotnet clean ./webapp.sln
+
+      - name: Restore Webapp dependencies
+        run: dotnet restore ./webapp.sln
+
+      - name: Build Webapp
+        run: dotnet build ./webapp.sln --configuration Release --no-restore
+
+      - name: Publish Webapp
+        run: dotnet publish ./webapp.sln -c Release -o ${{env.DOTNET_ROOT}}/webapp
+      
+      # Deploy Server (Development)
+      - name: Deploy Server to Azure Web App (Development)
+        if: github.ref == 'refs/heads/dev'
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'tingstedet-server'
+          publish-profile: ${{ secrets.AZURE_SERVER_PUBLISH_PROFILE_API_DEV}}
+          package: ${{env.DOTNET_ROOT}}/server
+      
+      # Deploy Blazor App (Development) kom nu
+      - name: Deploy Blazor to Azure Web App (Development)
+        if: github.ref == 'refs/heads/dev'
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'tingstedet-frontend'
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_APP_DEV}}
+          package: ${{env.DOTNET_ROOT}}/webapp
