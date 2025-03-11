@@ -13,7 +13,11 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(name: AllowSomeStuff, builder =>
     {
-        builder.AllowAnyOrigin()
+        builder
+            .WithOrigins(
+                "https://tingstedet-eke4g6a7d8c4excv.swedencentral-01.azurewebsites.net",
+                "http://localhost:5008",
+                "https://localhost:7295")
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -74,24 +78,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors(AllowSomeStuff);
-
-// Ensure CORS headers are applied even in production
-app.Use(async (context, next) =>
-{
-    context.Response.Headers.Add("Access-Control-Allow-Origin", "*");
-    context.Response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-    context.Response.Headers.Add("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    
-    if (context.Request.Method == "OPTIONS")
-    {
-        context.Response.StatusCode = 200;
-        await context.Response.CompleteAsync();
-    }
-    else
-    {
-        await next();
-    }
-});
 
 
 // IF NEEDED AND NOT USING CLAUDE AI **********************************************************************************************
