@@ -22,4 +22,10 @@
       <ProjectReference Include="..\core\core.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Update="web.config">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
 </Project>
