@@ -20,29 +20,29 @@ jobs:
       
       # Build and publish server
       - name: Clean Server
-        run: dotnet clean ./server.sln
+        run: dotnet clean ./Tingstedet.sln
 
       - name: Restore Server dependencies
-        run: dotnet restore ./server.sln
+        run: dotnet restore ./Tingstedet.sln
 
       - name: Build Server
-        run: dotnet build ./server.sln --configuration Release --no-restore
+        run: dotnet build ./Tingstedet.sln --configuration Release --no-restore
 
       - name: Publish Server
-        run: dotnet publish ./server.sln -c Release -o ${{env.DOTNET_ROOT}}/server
+        run: dotnet publish ./server/server.csproj -c Release -o ${{env.DOTNET_ROOT}}/server
 
       # Build and publish webapp
       - name: Clean Webapp
-        run: dotnet clean ./webapp.sln
+        run: dotnet clean ./Tingstedet.sln
 
       - name: Restore Webapp dependencies
-        run: dotnet restore ./webapp.sln
+        run: dotnet restore ./Tingstedet.sln
 
       - name: Build Webapp
-        run: dotnet build ./webapp.sln --configuration Release --no-restore
+        run: dotnet build ./Tingstedet.sln --configuration Release --no-restore
 
       - name: Publish Webapp
-        run: dotnet publish ./webapp.sln -c Release -o ${{env.DOTNET_ROOT}}/webapp
+        run: dotnet publish ./webapp/webapp.csproj -c Release -o ${{env.DOTNET_ROOT}}/webapp
       
       # Deploy Server (Development)
       - name: Deploy Server to Azure Web App (Development)
