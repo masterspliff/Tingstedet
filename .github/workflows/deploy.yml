@@ -18,20 +18,20 @@ jobs:
         dotnet-version: '9.0.x'
         
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore ./Tingstedet.sln
       
     - name: Build
-      run: dotnet build --no-restore
+      run: dotnet build ./Tingstedet.sln --no-restore
       
     - name: Test
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet test ./Tingstedet.sln --no-build --verbosity normal
       
     - name: Update appsettings
       run: |
         sed -i 's/CLAUDE_API_KEY_PLACEHOLDER/${{ secrets.CLAUDE_API_KEY }}/g' server/appsettings.json
         
     - name: Publish
-      run: dotnet publish -c Release --output ./publish
+      run: dotnet publish ./Tingstedet.sln -c Release --output ./publish
 
     # Add deployment steps as needed
     # This could be to Azure, AWS, or other hosting services
