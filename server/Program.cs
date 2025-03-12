@@ -82,6 +82,17 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors(AllowSomeStuff);
 
+// Ensure CORS headers are applied to error responses as well
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("Access-Control-Allow-Origin", "https://tingstedet-eke4g6a7d8c4excv.swedencentral-01.azurewebsites.net");
+    context.Response.Headers.Append("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    context.Response.Headers.Append("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    context.Response.Headers.Append("Access-Control-Allow-Credentials", "true");
+    
+    await next();
+});
+
 
 // Seed data to ensure we have content even if API calls fail
 using (var scope = app.Services.CreateScope())
