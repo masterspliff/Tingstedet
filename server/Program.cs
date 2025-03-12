@@ -16,11 +16,13 @@ builder.Services.AddCors(options =>
         builder
             .WithOrigins(
                 "https://tingstedet-eke4g6a7d8c4excv.swedencentral-01.azurewebsites.net",
+                "https://tingstedet-api-ddbbcxhhc7ebhzcj.swedencentral-01.azurewebsites.net",
                 "http://localhost:5008",
                 "https://localhost:7295")
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .SetIsOriginAllowedToAllowWildcardSubdomains();
+            .SetIsOriginAllowedToAllowWildcardSubdomains()
+            .AllowCredentials();
     });
 });
 
@@ -81,14 +83,12 @@ app.UseHttpsRedirection();
 app.UseCors(AllowSomeStuff);
 
 
-// IF NEEDED AND NOT USING CLAUDE AI **********************************************************************************************
-
-// Seed data
-//using (var scope = app.Services.CreateScope())
-//{
-//    var dataService = scope.ServiceProvider.GetRequiredService<DataService>();
-//    dataService.SeedData(); // Fills database with data if empty, otherwise does nothing
-//}
+// Seed data to ensure we have content even if API calls fail
+using (var scope = app.Services.CreateScope())
+{
+    var dataService = scope.ServiceProvider.GetRequiredService<DataService>();
+    dataService.SeedData(); // Fills database with data if empty, otherwise does nothing
+}
 
 // Middleware that runs before each request. Sets ContentType for all responses to "JSON".
 app.Use(async (context, next) =>
