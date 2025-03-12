@@ -56,11 +56,11 @@ string ReplaceEnvironmentVariables(string input)
 }
 
 // Add HttpClient for Claude API
-// builder.Services.AddHttpClient();
+builder.Services.AddHttpClient();
 
 // Register Services
 builder.Services.AddScoped<DataService>();
-// builder.Services.AddScoped<ClaudeService>();
+builder.Services.AddScoped<ClaudeService>();
 
 var app = builder.Build();
 
@@ -161,22 +161,22 @@ app.MapPost("/api/posts/{postId}/comments/{commentId}/replies", (int postId, int
 });
 
 // Generate content using Claude API
-// app.MapPost("/api/generate-content", async (ClaudeService claudeService, IHttpClientFactory httpClientFactory) =>
-// {
-//     var httpClient = httpClientFactory.CreateClient();
-//     return await claudeService.GenerateContentWithClaudeAsync(httpClient);
-// })
-// .WithName("GenerateContent")
-// .WithOpenApi();
+app.MapPost("/api/generate-content", async (ClaudeService claudeService, IHttpClientFactory httpClientFactory) =>
+{
+    var httpClient = httpClientFactory.CreateClient();
+    return await claudeService.GenerateContentWithClaudeAsync(httpClient);
+})
+.WithName("GenerateContent")
+.WithOpenApi();
 
 // Generate content with user-provided API key
-// app.MapPost("/api/generate-content-with-key", async ([FromBody] ClaudeService.ClaudeApiRequest request, ClaudeService claudeService, IHttpClientFactory httpClientFactory) =>
-// {
-//     var httpClient = httpClientFactory.CreateClient();
-//     return await claudeService.GenerateContentWithClaudeAsync(httpClient, request.ApiKey);
-// })
-// .WithName("GenerateContentWithKey")
-// .WithOpenApi();
+app.MapPost("/api/generate-content-with-key", async ([FromBody] ClaudeService.ClaudeApiRequest request, ClaudeService claudeService, IHttpClientFactory httpClientFactory) =>
+{
+    var httpClient = httpClientFactory.CreateClient();
+    return await claudeService.GenerateContentWithClaudeAsync(httpClient, request.ApiKey);
+})
+.WithName("GenerateContentWithKey")
+.WithOpenApi();
 
 // Delete all content
 app.MapDelete("/api/delete-all-content", (DataService dataService) =>

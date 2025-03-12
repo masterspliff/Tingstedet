@@ -8,6 +8,31 @@
 @inject IJSRuntime JsRuntime
 
 <div class="container mt-4">
+    @if (_showApiKeyDialog)
+    {
+        <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Enter Claude API Key</h5>
+                        <button type="button" class="btn-close" @onclick="CancelApiKeyDialog"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>No valid API key was found. Please enter your Claude API key to generate content:</p>
+                        <div class="mb-3">
+                            <input type="password" class="form-control" @bind="_apiKey" placeholder="Enter your Claude API key" />
+                            <small class="text-muted">Your API key is only used for this request and not stored persistently.</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CancelApiKeyDialog">Cancel</button>
+                        <button type="button" class="btn btn-primary" @onclick="SubmitApiKey">Submit</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
     <div class="row">
         <!-- Main content area -->
         <div class="col-md-8">
@@ -178,6 +203,9 @@
         NavigationManager.NavigateTo("/create");
     }
     
+    private string _apiKey = "";
+    private bool _showApiKeyDialog = false;
+    
     private async Task GenerateContent()
     {
         // Show loading indicator
@@ -186,16 +214,21 @@
         
         try
         {
-            var success = await PostService.GenerateContentAsync();
+            var result = await PostService.GenerateContentAsync(_apiKey);
             
-            if (success)
+            if (result.Success)
             {
                 await LoadPosts();
                 await JsRuntime.InvokeVoidAsync("alert", "New content generated successfully! (Existing content was preserved)");
             }
+            else if (result.NeedsApiKey)
+            {
+                // Show API key dialog
+                _showApiKeyDialog = true;
+            }
             else
             {
-                await JsRuntime.InvokeVoidAsync("alert", "Failed to generate content. Check the console for errors.");
+                await JsRuntime.InvokeVoidAsync("alert", $"Failed to generate content: {result.ErrorMessage}");
             }
         }
         catch (Exception ex)
@@ -208,6 +241,50 @@
             _contentLoaded = true;
             StateHasChanged();
         }
+    }
+    
+    private async Task SubmitApiKey()
+    {
+        if (string.IsNullOrWhiteSpace(_apiKey))
+        {
+            await JsRuntime.InvokeVoidAsync("alert", "Please enter a valid API key");
+            return;
+        }
+        
+        _showApiKeyDialog = false;
+        _contentLoaded = false;
+        StateHasChanged();
+        
+        try
+        {
+            var result = await PostService.GenerateContentAsync(_apiKey);
+            
+            if (result.Success)
+            {
+                await LoadPosts();
+                await JsRuntime.InvokeVoidAsync("alert", "New content generated successfully! (Existing content was preserved)");
+            }
+            else
+            {
+                await JsRuntime.InvokeVoidAsync("alert", $"Failed to generate content: {result.ErrorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error generating content with API key: {ex.Message}");
+            await JsRuntime.InvokeVoidAsync("alert", $"Error: {ex.Message}");
+        }
+        finally
+        {
+            _contentLoaded = true;
+            StateHasChanged();
+        }
+    }
+    
+    private void CancelApiKeyDialog()
+    {
+        _showApiKeyDialog = false;
+        _apiKey = "";
     }
     
     private async Task DeleteAllContent()

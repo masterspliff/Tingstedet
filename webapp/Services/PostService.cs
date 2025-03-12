@@ -5,6 +5,13 @@ using core.Models;
 
 namespace webapp.Services
 {
+    public class ContentGenerationResult
+    {
+        public bool Success { get; set; }
+        public bool NeedsApiKey { get; set; }
+        public string ErrorMessage { get; set; } = string.Empty;
+    }
+    
     public interface IPostService
     {
         Task<List<Post>> GetPostsAsync();
@@ -17,7 +24,7 @@ namespace webapp.Services
         Task<Comment> AddCommentAsync(int postId, string commentText, string author);
         Task<Comment> AddReplyAsync(int postId, int commentId, string replyText, string author);
         Task<Post> CreatePostAsync(Post post);
-        Task<bool> GenerateContentAsync();
+        Task<ContentGenerationResult> GenerateContentAsync(string apiKey = "");
         Task<bool> DeleteAllContentAsync();
         
         // Offline mode compatibility
@@ -619,36 +626,83 @@ namespace webapp.Services
             return new List<Post>();
         }
         
-        public async Task<bool> GenerateContentAsync()
+        public async Task<ContentGenerationResult> GenerateContentAsync(string apiKey = "")
         {
             try
             {
-                // Create a request with empty body
-                var request = new HttpRequestMessage(HttpMethod.Post, "/api/generate-content");
-                request.Content = new StringContent(string.Empty, System.Text.Encoding.UTF8, "application/json");
+                string endpoint = "/api/generate-content";
+                HttpContent content;
+                
+                // If API key is provided, use the endpoint that accepts an API key
+                if (!string.IsNullOrEmpty(apiKey))
+                {
+                    endpoint = "/api/generate-content-with-key";
+                    content = new StringContent(
+                        JsonSerializer.Serialize(new { ApiKey = apiKey }),
+                        Encoding.UTF8,
+                        "application/json");
+                }
+                else
+                {
+                    // No API key provided, use empty content
+                    content = new StringContent(string.Empty, Encoding.UTF8, "application/json");
+                }
+                
+                // Create the request
+                var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
+                request.Content = content;
                 
                 // Send the request
                 var response = await _httpClient.SendAsync(request);
+                var result = new ContentGenerationResult();
                 
-                // Log any error response for debugging
+                // If response was not successful, check if it's due to missing API key
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorContent = await response.Content.ReadAsStringAsync();
                     Console.Error.WriteLine($"Server error: {response.StatusCode}");
                     Console.Error.WriteLine($"Error details: {errorContent}");
+                    
+                    try
+                    {
+                        // Try to parse the error to see if it's an API key issue
+                        var errorJson = JsonSerializer.Deserialize<Dictionary<string, object>>(errorContent);
+                        if (errorJson != null && errorJson.ContainsKey("needsApiKey") && errorJson.ContainsKey("message"))
+                        {
+                            bool needsApiKey = errorJson["needsApiKey"].ToString() == "True";
+                            
+                            if (needsApiKey)
+                            {
+                                result.NeedsApiKey = true;
+                                result.ErrorMessage = errorJson["message"].ToString() ?? "API key required";
+                                return result;
+                            }
+                        }
+                    }
+                    catch (JsonException)
+                    {
+                        // If we can't parse the JSON, just use the raw error message
+                    }
+                    
+                    result.Success = false;
+                    result.ErrorMessage = $"Error: {response.StatusCode}. {errorContent}";
+                    return result;
                 }
-                
-                response.EnsureSuccessStatusCode();
                 
                 // If successful, refresh the posts list
                 await GetPostsAsync(); // Refresh the cache
                 
-                return true;
+                result.Success = true;
+                return result;
             }
             catch (Exception ex)
             {
                 Console.Error.WriteLine($"Error generating content: {ex.Message}");
-                return false;
+                return new ContentGenerationResult
+                {
+                    Success = false,
+                    ErrorMessage = ex.Message
+                };
             }
         }
         
