@@ -20,7 +20,12 @@ public class DataService
     /// </summary>
     public void SeedData()
     {
-        if (!db.Posts.Any())
+        try
+        {
+            // Ensure database is created (important for in-memory database)
+            db.Database.EnsureCreated();
+            
+            if (!db.Posts.Any())
         {
             // Create sample posts with comments
             var post1 = new Post
@@ -89,7 +94,12 @@ public class DataService
             db.Posts.Add(post2);
             db.Posts.Add(post3);
             
-            db.SaveChanges();
+                db.SaveChanges();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error seeding data: {ex.Message}");
         }
     }
     

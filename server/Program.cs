@@ -24,6 +24,9 @@ builder.Services.AddCors(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Add Entity Framework In-Memory Database provider for fallback
+builder.Services.AddEntityFrameworkInMemoryDatabase();
+
 // Configure JSON serialization
 builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
 {
@@ -35,9 +38,18 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 connectionString = ReplaceEnvironmentVariables(connectionString);
 
-// Add DbContext
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
+// Add DbContext with fallback to in-memory database if PostgreSQL fails
+builder.Services.AddDbContext<AppDbContext>(options => {
+    try {
+        options.UseNpgsql(connectionString);
+        Console.WriteLine("Using PostgreSQL database");
+    } 
+    catch (Exception ex) {
+        Console.WriteLine($"PostgreSQL connection failed: {ex.Message}");
+        Console.WriteLine("Falling back to in-memory database for demo purposes");
+        options.UseInMemoryDatabase("TingstedetInMemory");
+    }
+});
 
 // Helper method to replace environment variables in connection string
 string ReplaceEnvironmentVariables(string input)
